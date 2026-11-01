@@ -38,11 +38,11 @@ const SHADOWS = !LOW, BLOOM = !LOW; if (SHADOWS) { renderer.shadowMap.enabled = 
 const ENV = getEnv(renderer);
 host.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
-const skyC = new THREE.Color("#a8dcea"); scene.background = skyC; scene.fog = new THREE.Fog(skyC, 85, 240);
-const cam = new THREE.PerspectiveCamera(touch ? 50 : 42, 1, .5, 700);
+const skyC = new THREE.Color("#a8dcea"); scene.background = skyC; scene.fog = new THREE.Fog(skyC, 90, 330);
+const cam = new THREE.PerspectiveCamera(touch ? 58 : 52, 1, .3, 700);
 const hemi = new THREE.HemisphereLight("#ffffff", "#5b7a4a", 1.7); scene.add(hemi);
 const sun = new THREE.DirectionalLight("#fff3dc", 2.3); sun.position.set(30, 60, 20); scene.add(sun); scene.add(sun.target);
-if (SHADOWS) { sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); const sc = sun.shadow.camera; sc.left = sc.bottom = -42; sc.right = sc.top = 42; sc.near = 1; sc.far = 170; sun.shadow.bias = -.0004; sun.shadow.normalBias = .05; }
+if (SHADOWS) { sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); const sc = sun.shadow.camera; sc.left = sc.bottom = -55; sc.right = sc.top = 55; sc.near = 1; sc.far = 190; sun.shadow.bias = -.0004; sun.shadow.normalBias = .05; }
 
 const grad = (() => { const t = new THREE.DataTexture(new Uint8Array([110, 185, 255]), 3, 1, THREE.RedFormat); t.minFilter = t.magFilter = THREE.NearestFilter; t.needsUpdate = true; return t; })();
 const mc = new Map();
@@ -488,6 +488,7 @@ const player = new THREE.Group(); scene.add(player);
 const { g: jg, P: JP } = buildJack(W, look); const JS = .58; jg.scale.setScalar(JS); jg.position.y = 3.1 * JS; player.add(jg);
 const pShadow = blob(player, .9);
 const me = { x: 0, z: 6.5, y: 0, vy: 0, prevG: 0 };
+let camYaw = 0, camPitch = .34, camT = -9, camK = 1; const camFocus = new THREE.Vector3(0, 1.7, 6.5);
 let vx = 0, vz = 0, yaw = 0, phase = 0, lastStep = 0, edgeWarned = false, zoom = 1, driving = null, buffT = 0, airStart = 0;
 player.position.set(me.x, 0, me.z);
 
@@ -510,7 +511,13 @@ addEventListener("keydown", e => {
   if (e.key.startsWith("Arrow")) e.preventDefault();
 });
 addEventListener("keyup", e => { keys[keyOf(e)] = false; keys[e.key.toLowerCase()] = false; if (e.key === "Meta" || e.key === "Control" || e.key === "Alt") clearInput(); });
-addEventListener("wheel", e => { if (!started || e.target.closest?.(".drawer,dialog,.quests")) return; zoom = clamp(zoom * (1 + Math.sign(e.deltaY) * .08), .7, 1.7); }, { passive: true });
+{ // drag anywhere on the world (mouse, or a finger outside the walk stick) to orbit the camera
+  const look = { id: null, x: 0, y: 0 }, cv = renderer.domElement; cv.style.touchAction = "none";
+  cv.addEventListener("pointerdown", e => { if (!started || look.id !== null) return; look.id = e.pointerId; look.x = e.clientX; look.y = e.clientY; cv.setPointerCapture(e.pointerId); });
+  cv.addEventListener("pointermove", e => { if (e.pointerId !== look.id) return; const k = touch ? .009 : .006; camYaw -= (e.clientX - look.x) * k; camPitch = clamp(camPitch + (e.clientY - look.y) * k * .7, .06, 1.25); look.x = e.clientX; look.y = e.clientY; camT = clock; });
+  ["pointerup", "pointercancel", "lostpointercapture"].forEach(ev => cv.addEventListener(ev, e => { if (e.pointerId === look.id) look.id = null; }));
+}
+addEventListener("wheel", e => { if (!started || e.target.closest?.(".drawer,dialog,.quests")) return; zoom = clamp(zoom * (1 + Math.sign(e.deltaY) * .08), .55, 1.8); }, { passive: true });
 { const pop = $("#emopop"), btn = $("#emobtn"), show = v => { pop.hidden = !v; btn.setAttribute("aria-expanded", v); };
   btn.addEventListener("click", e => { e.stopPropagation(); show(pop.hidden); });
   pop.querySelectorAll("button").forEach((b, i) => b.addEventListener("click", e => { e.stopPropagation(); emote(i); show(false); }));
@@ -768,7 +775,7 @@ function respawn() {
   const v = driving, p = { x: rr(-3, 3), z: v ? 17 : 9 }; pushOut(p, v ? 2 : .8);
   if (v) { Object.assign(v, { x: p.x, z: p.z, y: 0, prevG: 0, vy: 0, yaw: 0, vx: 0, vz: 0, speed: 0 }); v.g.position.set(v.x, 0, v.z); v.g.rotation.set(0, 0, 0); }
   me.x = p.x; me.z = p.z; me.y = 0; me.vy = 0; vx = vz = 0;
-  cam.position.x = me.x; cam.position.z = me.z + 16;
+  camYaw = 0; camFocus.set(me.x, 1.7, me.z);
   burst(me.x, 1.5, me.z, 30, ["#7b5cff", "#41d3c9", "#ffffff"], 7); A.sfx("whoosh"); toast("🌀 Whoosh! Back to Singleton HQ.");
 }
 function surfaceAt(x, z) { if (roadDist(x, z) < 2.9) return "road"; for (const q of zones) if (Math.hypot(q.x - x, q.z - z) < q.r) return "stone"; return "grass"; }
@@ -937,6 +944,7 @@ function tick(now) {
     ix = (keys.d || keys.arrowright ? 1 : 0) - (keys.a || keys.arrowleft ? 1 : 0) + stick.x;
     iz = (keys.s || keys.arrowdown ? 1 : 0) - (keys.w || keys.arrowup ? 1 : 0) + stick.y;
     const l = Math.hypot(ix, iz); if (l > 1) { ix /= l; iz /= l; }
+    if (!driving) { const fx = -Math.sin(camYaw), fz = -Math.cos(camYaw), wx = -fz * ix - fx * iz, wz = fx * ix - fz * iz; ix = wx; iz = wz; } // forward = away from the camera
   }
   const mag = Math.hypot(ix, iz);
 
@@ -946,16 +954,12 @@ function tick(now) {
     const fx = Math.sin(v.yaw), fz = Math.cos(v.yaw);
     let f = v.vx * fx + v.vz * fz, l = v.vx * fz - v.vz * fx, yr = 0, thr = 0;
     if (!airborne) {
-      if (mag > .1) {
-        const want = Math.atan2(ix, iz), diff = angDiff(want, v.yaw);
-        if (Math.abs(diff) > 2.3 && f > 2.5) { f = Math.max(0, f - 34 * mag * dt); thr = -1; }            // pull back while rolling = brake
-        else if (Math.abs(diff) > 2.3) { yr = clamp(angDiff(want + Math.PI, v.yaw) * 3, -v.turn, v.turn) * clamp(-f / 4, .3, 1); f = Math.max(-8, f - acc * .6 * mag * dt); thr = .4; } // reverse
-        else {
-          const steer = clamp(Math.abs(f) / 7, .3, 1) * (1 - .3 * clamp(f / v.maxS, 0, 1)) * (hb ? 1.5 : 1);
-          yr = clamp(diff * 4, -v.turn, v.turn) * steer;
-          thr = mag * clamp(Math.cos(diff) * 1.4, .2, 1) * (hb ? .15 : 1);
-          f += acc * thr * (1 - clamp(f / max, 0, 1.2) ** 2) * dt;
-        }
+      if (mag > .1) { // car-relative: W/↑ gas · S/↓ brake, then reverse · A/D steer (joystick: up = gas, sideways = steer)
+        const gas = -iz, st = ix, steer = clamp(Math.abs(f) / 6, .15, 1) * (1 - .35 * clamp(f / v.maxS, 0, 1)) * (hb ? 1.5 : 1);
+        yr = -st * v.turn * steer * (f < -.5 ? -1 : 1);
+        if (gas < -.1 && f > 2.5) { f = Math.max(0, f + gas * 34 * dt); thr = -1; }
+        else if (gas < -.1) { f = Math.max(-9, f + gas * acc * .6 * dt); thr = .4; }
+        else if (gas > .1) { thr = gas * (hb ? .15 : 1); f += acc * thr * (1 - clamp(f / max, 0, 1.2) ** 2) * dt; }
       }
       if (thr <= 0 || hb) f *= Math.exp(-dt * (hb ? .8 : thr < 0 ? 0 : .75));
       f -= f * .06 * dt;
@@ -1109,15 +1113,29 @@ function tick(now) {
   }
   if (frame % 8 === 0) drawMini();
   if (started && frame % 30 === 0) { elapsed = (now - t0) / 1000; $("#timer").textContent = fmt(elapsed); }
-  if (SHADOWS) { sun.position.set(me.x + 30, 60, me.z + 20); sun.target.position.set(me.x, 0, me.z); }
-  // ----- camera follows (pulls back with speed, looks ahead)
-  const spd = Math.abs(mover.speed || 0), kz = Math.min(1, spd / 26);
-  const offY = ((touch ? 17 : 13.5) + kz * 9) * zoom, offZ = ((touch ? 19 : 16) + kz * 8) * zoom;
-  const ax = driving ? Math.sin(driving.yaw) * driving.speed * .35 : 0, az = driving ? Math.cos(driving.yaw) * driving.speed * .35 : 0;
-  const tx = me.x + ax, tz = me.z + az, kc = 1 - Math.exp(-dt * 4);
-  cam.position.x += (tx - cam.position.x) * kc; cam.position.y += (offY - cam.position.y) * kc; cam.position.z += (tz + offZ - cam.position.z) * kc;
-  cam.lookAt(cam.position.x, 1.2, cam.position.z - offZ + .5);
+  if (SHADOWS) { const sx = me.x - Math.sin(camYaw) * 22, sz = me.z - Math.cos(camYaw) * 22; sun.position.set(sx + 30, 60, sz + 20); sun.target.position.set(sx, 0, sz); } // shadows cover what you look at
+  // ----- third-person camera: orbits Jack (drag to look), lazily swings behind where you're heading, pulls back with speed
+  { const v = driving, spd = Math.abs(mover.speed || 0), kz = Math.min(1, spd / 26), manual = clock - camT < (v ? 1.2 : 2.2);
+    const sp2 = Math.hypot(vx, vz), away = sp2 > .5 ? Math.max(0, -(vx * Math.sin(camYaw) + vz * Math.cos(camYaw)) / sp2) : 0; // only swing behind when walking away from the camera, never while strafing
+    const follow = manual || !started ? 0 : v ? 2.8 * Math.min(1, spd / 4) : 1.6 * away * away * Math.min(1, sp2 / 8.5);
+    camYaw = lerpA(camYaw, (v ? v.yaw : yaw) + Math.PI, 1 - Math.exp(-dt * follow));
+    if (!manual) camPitch += ((v ? .26 : .34) - camPitch) * (1 - Math.exp(-dt * 1.2));
+    const fy = (v ? v.y : me.y) + (v ? 2 : 1.75), la = v ? clamp(v.speed * .1, -1.5, 3.5) : 0;
+    const kf = 1 - Math.exp(-dt * 10);
+    camFocus.x += (me.x + Math.sin(v ? v.yaw : yaw) * la - camFocus.x) * kf; camFocus.z += (me.z + Math.cos(v ? v.yaw : yaw) * la - camFocus.z) * kf; camFocus.y += (fy - camFocus.y) * kf;
+    const dist = ((touch ? 10 : 8.5) + (v ? 3.5 + kz * 4 : 0)) * zoom, cp = Math.cos(camPitch), ox = Math.sin(camYaw) * cp * dist, oz = Math.cos(camYaw) * cp * dist;
+    const clear = camClear(camFocus.x, camFocus.z, ox, oz); camK += (clear - camK) * (1 - Math.exp(-dt * (clear < camK ? 14 : 2.5)));
+    cam.position.set(camFocus.x + ox * camK, Math.max(.5, camFocus.y + Math.sin(camPitch) * dist * camK), camFocus.z + oz * camK);
+    cam.lookAt(camFocus.x, camFocus.y + (v ? 1.3 : 1.1), camFocus.z); // aim a bit above the head so Jack sits in the lower third
+    const fov = (touch ? 58 : 52) + kz * 9; if (Math.abs(cam.fov - fov) > .05) { cam.fov += (fov - cam.fov) * Math.min(1, dt * 3); cam.updateProjectionMatrix(); }
+  }
   if (composer) composer.render(); else renderer.render(scene, cam);
+}
+// shorten the camera boom when a building would block the view
+function camClear(fx, fz, ox, oz) {
+  for (let i = 1; i <= 8; i++) { const t = i / 8, x = fx + ox * t, z = fz + oz * t;
+    for (const c of nearCols(x, z)) if (c.box ? Math.abs(x - c.x) < c.hw + .3 && Math.abs(z - c.z) < c.hd + .3 : c.r > 1.2 && Math.hypot(x - c.x, z - c.z) < c.r + .3) return Math.max(.3, t - .15); }
+  return 1;
 }
 function avoidVehicles(o, r) { for (const v of vehicles) { if (v === driving) continue; const dx = o.x - v.x, dz = o.z - v.z, d = Math.hypot(dx, dz), m = v.r + r; if (d < m && d > 1e-3) { o.x = v.x + dx / d * m; o.z = v.z + dz / d * m; } } }
 function lerpA(a, b, t) { return a + angDiff(b, a) * t; }
@@ -1129,4 +1147,4 @@ scene.traverse(o => { if (!o.isMesh) return; o.receiveShadow = true; if (!SHADOW
 dayNight(.08); renderQuests(); drawMini();
 $("#loading").remove();
 raf = requestAnimationFrame(tick);
-if (url.searchParams.has("debug")) window.__world = { get remotes() { return remotes; }, get mp() { return mp; }, get duo() { return duo; }, get frame() { return frame; }, pen: (x, z, r) => { const o = { x, z }; pushOut(o, r); return Math.hypot(o.x - x, o.z - z); }, rampY: (x, z) => groundAt(x, z), ramps, get near() { return target?.type === "zone" ? target.obj : null; }, get target() { return target; }, zones, bugs, tokens, vehicles, npcs, ball, pitch, Q, me, tp: (x, z) => { if (driving) { driving.x = x; driving.z = z; } else { me.x = x; me.z = z; } }, enter: v => enterVehicle(v), exit: () => exitVehicle(), get driving() { return driving; }, talk: z => talk(z), next: () => next(), get dialogOpen() { return dialogOpen; }, keys, emote, myEmo, arcade, play: id => openArcade(zones.find(z => z.p?.id === id)), respawn, tod: t => { clock = ((t - .08 + 1) % 1) * DAY; }, get clock() { return clock; }, get zoom() { return zoom; }, set zoom(z) { zoom = z; } };
+if (url.searchParams.has("debug")) window.__world = { get remotes() { return remotes; }, get mp() { return mp; }, get duo() { return duo; }, get frame() { return frame; }, pen: (x, z, r) => { const o = { x, z }; pushOut(o, r); return Math.hypot(o.x - x, o.z - z); }, rampY: (x, z) => groundAt(x, z), ramps, get near() { return target?.type === "zone" ? target.obj : null; }, get target() { return target; }, zones, bugs, tokens, vehicles, npcs, ball, pitch, Q, me, tp: (x, z) => { if (driving) { driving.x = x; driving.z = z; } else { me.x = x; me.z = z; } }, enter: v => enterVehicle(v), exit: () => exitVehicle(), get driving() { return driving; }, talk: z => talk(z), next: () => next(), get dialogOpen() { return dialogOpen; }, keys, emote, myEmo, arcade, get cam() { return { yaw: camYaw, pitch: camPitch, k: camK }; }, setCam: (y, p) => { camYaw = y; camPitch = p; camT = clock; }, play: id => openArcade(zones.find(z => z.p?.id === id)), respawn, tod: t => { clock = ((t - .08 + 1) % 1) * DAY; }, get clock() { return clock; }, get zoom() { return zoom; }, set zoom(z) { zoom = z; } };

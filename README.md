@@ -27,6 +27,7 @@ Every edit you commit goes live automatically.
 - Emotes (keys 1–6 or the emote bar): wave, laugh, love, thumbs up, dance, huh. Other Jacks in the same world see them; nearby NPCs wave back.
 - Big, calm world: a few groves instead of a forest, hills on the horizon. No walls: walk or drive past the edge and you're whisked back to HQ.
 - Natural sound: soft effects, footsteps that change on grass/road/stone, an engine that revs with speed, tyre squeal when drifting, wind and crickets at night. No crash sounds.
+- Third-person camera: sits behind Jack and swings around as you walk away from it; drag (mouse, or a finger on the right side) to orbit, wheel to zoom; pulls in when a building is in the way. Driving is car-relative (W gas, S brake/reverse, A/D steer) with the camera chasing behind and widening with speed.
 - Graphics: drifting cloud shadows, soft bloom on lamps/windows/holograms at night (desktop), vignette, mouse-wheel zoom.
 - NPCs with funny lines + hints, cows that always win, filter-coffee speed boost, signposts, football pitch with a goal, 60 tokens.
 - Arcade cabinet at every project zone: a 30-second mini version of that game (MorphRush shape gates, Back-to-Back Arcade shooter, Sector404 copy/paste hacking, Circuit Smasher zombie shunting, REVERSE spot-what-changed, Wasteland Chorus swipe-to-swing). Best scores saved per browser. Code: assets/js/minigames.js.

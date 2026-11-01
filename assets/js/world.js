@@ -2,6 +2,7 @@
    Three.js, toon style, instanced decor, mobile-friendly. Content comes from data/content.js. */
 import { buildJack, randomLook, lookName, getEnv, THREE } from "./jack3d.js";
 import { RoundedBoxGeometry } from "../vendor/RoundedBoxGeometry.js";
+import { joinRoom } from "./mp.js";
 
 const { C, A, $, esc, pick, toast } = window.Jack;
 const WD = C.world || {}, P = C.profile, TAU = Math.PI * 2;
@@ -15,8 +16,10 @@ const angDiff = (a, b) => ((a - b + Math.PI) % TAU + TAU) % TAU - Math.PI;
 
 /* ---------- seed: every visitor gets a different world, shareable via ?seed= ---------- */
 const url = new URL(location.href);
-const seed = (url.searchParams.get("seed") || Math.random().toString(36).slice(2, 8)).slice(0, 16);
-url.searchParams.set("seed", seed); history.replaceState(null, "", url);
+// default = today's shared "live" world (so visitors meet); ?solo gives a private random world; ?seed=… joins a specific world
+const solo = url.searchParams.has("solo");
+const seed = (url.searchParams.get("seed") || (solo ? Math.random().toString(36).slice(2, 8) : "live-" + new Date().toISOString().slice(0, 10))).slice(0, 24);
+if (!seed.startsWith("live-") || url.searchParams.has("seed")) { url.searchParams.set("seed", seed); history.replaceState(null, "", url); }
 function hash(s) { let h = 1779033703 ^ s.length; for (let i = 0; i < s.length; i++) { h = Math.imul(h ^ s.charCodeAt(i), 3432918353); h = h << 13 | h >>> 19; } return h >>> 0; }
 function rng(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 const R = rng(hash(seed)), rr = (a, b) => a + R() * (b - a), rpick = a => a[Math.floor(R() * a.length)];
@@ -595,15 +598,18 @@ function enterVehicle(v) {
   driving = v; v.body.add(player); player.position.set(...v.seat); player.rotation.set(0, 0, 0); if (pShadow) pShadow.visible = false;
   JP.legs.forEach(l => l.rotation.x = v.legs); JP.knees.forEach(k => k.rotation.x = v.knees); JP.arms.forEach(a => a.rotation.x = -1.05); JP.elbows.forEach(e => e.rotation.x = -.45);
   if (v.kind === "bike") Q.bike = true; else Q.car = true;
+  const pal = dogs.filter(d => !d.riding).map(d => [d, Math.hypot(d.x - v.x, d.z - v.z)]).filter(([d, dd]) => dd < (d.petted ? 20 : 10)).sort((a, b) => a[1] - b[1])[0];
+  if (pal) { const d = pal[0]; d.riding = v; v.dog = d; v.body.add(d.g); d.g.position.set(...(v.kind === "car" ? [.5, 1.5, -.35] : [0, 1.38, -.9])); d.g.rotation.set(0, 0, 0); d.legs.forEach(l => l.rotation.x = 0); setTimeout(() => { A.sfx("bark"); toast(v.kind === "car" ? "🐶 The dog hopped into the passenger seat. Road trip!" : "🐶 The dog jumped on the back seat. Hold on, buddy!"); }, 1600); }
   A.sfx("open"); toast(`🛵 You're on the ${v.name}! ${touch ? "Drag to drive · 📯 honk · 💬 exit" : "WASD drive · Shift boost · H honk · F exit"}`); renderQuests();
 }
 function exitVehicle() {
   const v = driving; if (!v) return; driving = null;
   scene.add(player); JP.knees.forEach(k => k.rotation.x = 0); JP.elbows.forEach(e => e.rotation.x = 0);
   for (let k = 0; k < 8; k++) { const a = v.yaw + Math.PI / 2 + k * Math.PI / 4, t = { x: v.x + Math.sin(a) * (v.r + 1.3), z: v.z + Math.cos(a) * (v.r + 1.3) }; const blocked = pushOut(t, .7) || groundAt(t.x, t.z) > .1 || vehicles.some(o => o !== v && Math.hypot(o.x - t.x, o.z - t.z) < o.r + .8); if (!blocked || k === 7) { me.x = t.x; me.z = t.z; break; } }
-  me.y = 0; me.vy = 0; if (pShadow) pShadow.visible = true; yaw = v.yaw; v.speed = 0; A.sfx("click");
+  me.y = 0; me.vy = 0; if (pShadow) pShadow.visible = true;
+  if (v.dog) { const d = v.dog; v.dog = null; d.riding = null; scene.add(d.g); const o = { x: me.x + 1.3, z: me.z + .9 }; pushOut(o, .5); d.x = o.x; d.z = o.z; d.g.position.set(d.x, 0, d.z); } yaw = v.yaw; v.speed = 0; A.sfx("click");
 }
-function honk() { A.sfx("honk"); if (cows.some(c => Math.hypot(c.x - driving.x, c.z - driving.z) < 14)) setTimeout(() => { A.sfx("moo"); toast(`🐄 ${pick(WD.cow || ["Moo."])}`); }, 350); npcs.forEach(n => { if (Math.hypot(n.x - driving.x, n.z - driving.z) < 10 && !n.kv) n.vy = 5; }); }
+function honk() { A.sfx("honk"); mp?.send({ t: "h" }); if (driving.dog) setTimeout(() => A.sfx("bark"), 250); if (cows.some(c => Math.hypot(c.x - driving.x, c.z - driving.z) < 14)) setTimeout(() => { A.sfx("moo"); toast(`🐄 ${pick(WD.cow || ["Moo."])}`); }, 350); npcs.forEach(n => { if (Math.hypot(n.x - driving.x, n.z - driving.z) < 10 && !n.kv) n.vy = 5; }); }
 function action2() { if (!started) return; if (driving) return honk(); if (me.y <= me.prevG + .05) { me.y += .1; me.vy = 10; A.sfx("jump"); } }
 
 /* ---------- interaction targets ---------- */
@@ -618,7 +624,7 @@ function findTarget() {
   for (const w of cows) c("cow", w, w.x, w.z, 3.4, "Say hi to the cow 🐄");
   for (const s of signs) c("sign", s, s.x, s.z, 2.6, "Read the sign");
   c("stall", stall, stall.x, stall.z, 3.6, "Grab filter coffee ☕");
-  for (const v of vehicles) c("vehicle", v, v.x, v.z, v.r + 2, `Ride the ${v.name} ${v.kind === "bike" ? "🏍️" : "🚗"}`);
+  for (const v of vehicles) if (!v.remote) c("vehicle", v, v.x, v.z, v.r + 2, `Ride the ${v.name} ${v.kind === "bike" ? "🏍️" : "🚗"}`);
   return best;
 }
 function interact() {
@@ -639,6 +645,7 @@ function interact() {
 /* ---------- intro / ending ---------- */
 let started = false, t0 = 0, elapsed = 0;
 $("#seedtxt").textContent = `World #${seed} · Jack is wearing: ${lookName(W, look)}`;
+$("#mpnote").innerHTML = solo ? '🎲 Private world, just you. <a href="world.html">🌐 Join the live world</a>' : '🌐 Live world: other visitors show up here too. <a href="world.html?solo=1">🎲 Play a private world</a>';
 $("#start").onclick = () => { $("#intro").hidden = true; started = true; t0 = performance.now(); A.init(); A.apply(); A.sfx("open"); openDialog(WD.intro || ["Welcome to my world!"], null); };
 $("#share").onclick = async () => { try { await navigator.clipboard.writeText(location.href); toast("World link copied — send someone your exact map!"); } catch (e) { toast(location.href); } };
 const fmt = s => { s = Math.floor(s); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
@@ -687,6 +694,7 @@ function drawMini() {
   mm.fillStyle = "#ff3bd4"; for (const b of bugs) if (b.alive) mm.fillRect(X(b.x) - 2.5, Z(b.z) - 2.5, 5, 5);
   mm.fillStyle = "#ffffff"; for (const v of vehicles) if (v !== driving) mm.fillRect(X(v.x) - 3, Z(v.z) - 3, 6, 6);
   mm.fillStyle = "#6b4128"; mm.fillRect(X(stall.x) - 3, Z(stall.z) - 3, 6, 6);
+  mm.fillStyle = "#41d3c9"; for (const r of remotes.values()) { mm.beginPath(); mm.arc(X(r.x), Z(r.z), 5.5, 0, TAU); mm.fill(); }
   mm.translate(X(me.x), Z(me.z)); mm.rotate(-(driving ? driving.yaw : yaw) + Math.PI); mm.fillStyle = "#1a1420"; mm.strokeStyle = "#fff"; mm.lineWidth = 2.5;
   mm.beginPath(); mm.moveTo(0, -10); mm.lineTo(7, 7); mm.lineTo(-7, 7); mm.closePath(); mm.fill(); mm.stroke();
   mm.restore();
@@ -701,6 +709,85 @@ function vertical(o, dt, onLand) { // ground + ramps + gravity; returns true whe
   return true;
 }
 let crashCool = 0;
+
+/* ---------- multiplayer: other visitors' Jacks (peer-to-peer, same world = same room) ---------- */
+const remotes = new Map(), DUO = WD.duo || [];
+let mp = null, duo = null, netT = 0;
+const myName = lookName(W, look);
+const SLOTS = [["top", "tops"], ["pants", "pants"], ["shoes", "shoes"], ["hat", "hats"], ["glasses", "glasses"], ["neck", "neck"], ["hand", "hand"]];
+const cleanLook = l => Object.fromEntries(SLOTS.map(([k, list]) => [k, W[list].some(x => x.id === l?.[k]) ? l[k] : W[list][0].id]));
+const num = (v, lo, hi) => { v = +v; return Number.isFinite(v) ? clamp(v, lo, hi) : 0; };
+function updateOnline() { const el = $("#online"); if (!mp) { el.hidden = true; return; } el.hidden = false; el.textContent = remotes.size ? `🌐 ${remotes.size + 1} Jacks in this world` : "🌐 Live world · waiting for other Jacks"; }
+function addRemote(id, lk) {
+  if (remotes.has(id)) return remotes.get(id);
+  const L = cleanLook(lk), g = new THREE.Group(); scene.add(g);
+  const { g: body, P: RP } = buildJack(W, L); body.scale.setScalar(JS); body.position.y = 3.1 * JS; g.add(body);
+  if (SHADOWS) body.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  const name = lookName(W, L), tag = labelSprite("Another Jack", name, "#41d3c9"); tag.scale.set(4.4, 1.3, 1); tag.position.y = 4.4; g.add(tag);
+  const r = { id, g, body, P: RP, name, x: me.x + 4, z: me.z + 2, y: 0, yaw: 0, tx: me.x + 4, tz: me.z + 2, ty: 0, tyaw: 0, veh: -1, seen: performance.now(), phase: 0, cool: 3 };
+  g.position.set(r.x, 0, r.z); remotes.set(id, r);
+  toast(`👋 Another Jack (${name}) just spawned into your world!`); A.sfx("open"); updateOnline(); return r;
+}
+function remoteLeaveVehicle(r) { const v = vehicles[r.veh]; if (v) v.remote = null; scene.add(r.g); r.P.legs.forEach(l => l.rotation.x = 0); r.P.arms.forEach(a => a.rotation.x = 0); r.veh = -1; }
+function removeRemote(id) { const r = remotes.get(id); if (!r) return; if (r.veh >= 0) remoteLeaveVehicle(r); scene.remove(r.g); remotes.delete(id); if (duo?.r === r) endDuo(); toast(`💨 ${r.name} Jack left the world.`); updateOnline(); }
+function onNet(id, d) {
+  if (!d || typeof d !== "object") return;
+  if (d.t === "hi") { addRemote(id, d.look); return; }
+  if (d.t === "who") { mp?.send({ t: "hi", look }, id); return; }
+  const r = remotes.get(id); if (!r) { if (d.t === "s") mp?.send({ t: "who" }, id); return; }
+  r.seen = performance.now();
+  if (d.t === "s") {
+    r.tx = num(d.x, -WR - 5, WR + 5); r.tz = num(d.z, -WR - 5, WR + 5); r.ty = num(d.y, 0, 40); r.tyaw = num(d.r, -1e3, 1e3);
+    const vi = Number.isInteger(d.v) && d.v >= 0 && d.v < vehicles.length ? d.v : -1;
+    if (vi !== r.veh) {
+      if (r.veh >= 0) remoteLeaveVehicle(r);
+      const v = vehicles[vi];
+      if (v && v !== driving && !v.remote) { v.remote = r; r.veh = vi; v.tx = r.tx; v.tz = r.tz; v.tyaw = r.tyaw; v.body.add(r.g); r.g.position.set(...v.seat); r.g.rotation.set(0, 0, 0); r.P.legs.forEach(l => l.rotation.x = v.legs); r.P.arms.forEach(a => a.rotation.x = -1); }
+    }
+    if (r.veh >= 0) { const v = vehicles[r.veh]; v.tx = r.tx; v.tz = r.tz; v.ty = r.ty; v.tyaw = r.tyaw; }
+  } else if (d.t === "c" && Number.isInteger(d.i) && d.i >= 0 && d.i < DUO.length) startDuo(r, d.i, false);
+  else if (d.t === "h" && Math.hypot(r.x - me.x, r.z - me.z) < 30) A.sfx("honk");
+}
+// speech bubbles above heads for Jack-to-Jack chats (text only ever comes from our own script list)
+const bub = document.createElement("div"); bub.className = "mpbub"; document.body.append(bub);
+let bubObj = null; const tmpV = new THREE.Vector3();
+function startDuo(r, i, iAmA) {
+  if (duo) return; r.cool = 45;
+  const a = iAmA ? myName : r.name, b = iAmA ? r.name : myName;
+  duo = { r, i: 0, t: .4, lines: DUO[i].map(([sp, txt]) => ({ me: (sp === "A") === iAmA, text: txt.replaceAll("{A}", a).replaceAll("{B}", b) })) };
+}
+function endDuo() { duo = null; bubObj = null; bub.classList.remove("show"); }
+function netTick(dt, now) {
+  for (const r of [...remotes.values()]) {
+    if (now - r.seen > 8000) { removeRemote(r.id); continue; }
+    const k = 1 - Math.exp(-dt * 10);
+    if (r.veh >= 0) {
+      const v = vehicles[r.veh], ox = v.x, oz = v.z;
+      v.x += (v.tx - v.x) * k; v.z += (v.tz - v.z) * k; v.y += ((v.ty || 0) - v.y) * k; v.yaw = lerpA(v.yaw, v.tyaw, k);
+      v.g.position.set(v.x, v.y, v.z); v.g.rotation.y = v.yaw;
+      const sp = Math.hypot(v.x - ox, v.z - oz) / Math.max(dt, 1e-3); v.wheels.forEach(w => w.rotation.x += sp * dt / v.wr); r.x = v.x; r.z = v.z;
+    } else {
+      const ox = r.x, oz = r.z; r.x += (r.tx - r.x) * k; r.z += (r.tz - r.z) * k; r.y += (r.ty - r.y) * k; r.yaw = lerpA(r.yaw, r.tyaw, k);
+      const spd = Math.hypot(r.x - ox, r.z - oz) / Math.max(dt, 1e-3), mv = Math.min(1, spd / 8.5); r.phase += dt * (6 + spd * .9);
+      const sw = Math.sin(r.phase) * mv; r.P.legs[0].rotation.x = sw * .75; r.P.legs[1].rotation.x = -sw * .75; r.P.arms[0].rotation.x = -sw * .6; r.P.arms[1].rotation.x = sw * .6;
+      r.body.position.y = 3.1 * JS + Math.abs(Math.sin(r.phase)) * .18 * mv; r.g.position.set(r.x, r.y, r.z); r.g.rotation.y = r.yaw;
+      if (!driving) sep(me, r, 1.2, 1);
+    }
+    r.cool -= dt;
+    if (!duo && r.cool <= 0 && mp && mp.me < r.id && Math.hypot(r.x - me.x, r.z - me.z) < 6 && DUO.length) { const i = Math.floor(Math.random() * DUO.length); mp.send({ t: "c", i }, r.id); startDuo(r, i, true); }
+  }
+  if (duo) {
+    if (!remotes.has(duo.r.id)) endDuo();
+    else if ((duo.t -= dt) <= 0) { const l = duo.lines[duo.i++]; if (!l) endDuo(); else { bubObj = l.me ? player : duo.r.g; bub.textContent = l.text; bub.classList.remove("show"); void bub.offsetWidth; bub.classList.add("show"); A.sfx("hover"); duo.t = 2.9; } }
+  }
+  if (bubObj) { bubObj.getWorldPosition(tmpV); tmpV.y += 4.3; tmpV.project(cam); bub.style.transform = `translate(${(tmpV.x * .5 + .5) * innerWidth}px,${(-tmpV.y * .5 + .5) * innerHeight}px) translate(-50%,-100%)`; }
+  if (mp && mp.count && (netT -= dt) <= 0) { netT = .1; mp.send({ t: "s", x: +me.x.toFixed(2), z: +me.z.toFixed(2), y: +(driving ? driving.y : me.y).toFixed(2), r: +(driving ? driving.yaw : yaw).toFixed(3), v: driving ? vehicles.indexOf(driving) : -1 }); }
+}
+if (!solo && "RTCPeerConnection" in window) {
+  const ph = url.searchParams.get("peerhost"), server = ph ? { host: ph.split(":")[0], port: +ph.split(":")[1] || 9000, path: "/", secure: false } : null;
+  joinRoom("jackwalker728-world-" + hash(seed).toString(36), { server, onJoin: id => mp?.send({ t: "hi", look }, id), onLeave: removeRemote, onData: onNet })
+    .then(m => { mp = m; if (m) { updateOnline(); m.send({ t: "hi", look }); } }).catch(() => {});
+}
 
 /* ---------- main loop ---------- */
 let last = performance.now(), frame = 0, clock = 0, raf = 0;
@@ -792,6 +879,7 @@ function tick(now) {
   }
   // ----- dogs: follow the player when close, otherwise wander
   for (const d of dogs) {
+    if (d.riding) { d.tail.rotation.y = Math.sin(clock * 22) * .6; d.head.rotation.y = Math.sin(clock * 1.3) * .4; continue; }
     const dP = Math.hypot(d.x - me.x, d.z - me.z); let tx, tz, sp = 0;
     if (dP < 18 && dP > 2.6) { tx = me.x; tz = me.z; sp = Math.min(driving ? 14 : 9, dP * 1.6); if (frame % 240 === 0 && dP < 10) A.sfx("bark"); }
     else if (dP >= 18) { if (d.wait > 0) d.wait -= dt; else { const dd = Math.hypot(d.tx - d.x, d.tz - d.z); if (dd < 1) { d.tx = d.hx + (Math.random() - .5) * 16; d.tz = d.hz + (Math.random() - .5) * 16; d.wait = 1 + Math.random() * 3; } else { tx = d.tx; tz = d.tz; sp = 3; } } }
@@ -854,6 +942,7 @@ function tick(now) {
   floaters.forEach((f, i) => f.position.y += Math.sin(clock * 2 + i) * .004);
   for (const z of zones) if (z.flag) z.flag.rotation.z = unlocked() ? -1.2 : 0;
   if (frame % 10 === 0) dayNight(((clock / DAY) + .08) % 1);
+  netTick(dt, now);
   // ----- proximity / prompt / HUD
   if (frame % 4 === 0) {
     target = started ? findTarget() : null;
@@ -890,4 +979,4 @@ scene.traverse(o => { if (!o.isMesh) return; o.receiveShadow = true; if (!SHADOW
 dayNight(.08); renderQuests(); drawMini();
 $("#loading").remove();
 raf = requestAnimationFrame(tick);
-if (url.searchParams.has("debug")) window.__world = { get frame() { return frame; }, pen: (x, z, r) => { const o = { x, z }; pushOut(o, r); return Math.hypot(o.x - x, o.z - z); }, rampY: (x, z) => groundAt(x, z), ramps, get near() { return target?.type === "zone" ? target.obj : null; }, get target() { return target; }, zones, bugs, tokens, vehicles, npcs, dogs, ball, pitch, Q, me, tp: (x, z) => { if (driving) { driving.x = x; driving.z = z; } else { me.x = x; me.z = z; } }, enter: v => enterVehicle(v), exit: () => exitVehicle(), get driving() { return driving; }, talk: z => talk(z), next: () => next(), get dialogOpen() { return dialogOpen; }, keys };
+if (url.searchParams.has("debug")) window.__world = { get remotes() { return remotes; }, get mp() { return mp; }, get duo() { return duo; }, get frame() { return frame; }, pen: (x, z, r) => { const o = { x, z }; pushOut(o, r); return Math.hypot(o.x - x, o.z - z); }, rampY: (x, z) => groundAt(x, z), ramps, get near() { return target?.type === "zone" ? target.obj : null; }, get target() { return target; }, zones, bugs, tokens, vehicles, npcs, dogs, ball, pitch, Q, me, tp: (x, z) => { if (driving) { driving.x = x; driving.z = z; } else { me.x = x; me.z = z; } }, enter: v => enterVehicle(v), exit: () => exitVehicle(), get driving() { return driving; }, talk: z => talk(z), next: () => next(), get dialogOpen() { return dialogOpen; }, keys };

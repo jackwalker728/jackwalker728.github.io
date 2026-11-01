@@ -32,6 +32,13 @@ Every edit you commit goes live automatically.
 - Controls: WASD/arrows + Shift, E/Space to talk; on phones, drag to walk and tap 💬.
 - If the AI worker is set up, each project gets a fresh AI-written intro line.
 
+## Multiplayer (live world)
+- `world.html` with no `?seed` = today's shared live world: everyone who opens it that day is on the same map and sees each other.
+- `?solo=1` = private random world. `?seed=xyz` = a specific world (share the link to play together).
+- Peer-to-peer over WebRTC (`assets/js/mp.js`, bundled PeerJS). Only the free PeerJS broker is used to introduce browsers; up to 8 players per world.
+- When two Jacks meet they have a short scripted chat (`content.js → world.duo`, {A}/{B} = outfit names). Vehicles they drive are synced.
+- Some strict corporate/mobile networks block peer-to-peer connections; then the game just stays single-player.
+
 ## Ask Jack chat
 - Floating **Ask Jack** button on the landing and portfolio pages.
 - Works right away with built-in answers (FAQs in `content.js → chat.faqs`, plus answers generated from your projects, skills and hobbies).

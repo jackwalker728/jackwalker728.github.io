@@ -104,6 +104,20 @@ window.CONTENT = {
     dog: ["Good boy! +1 happiness.", "The dog wags. The dog approves of your portfolio choices.", "Petted! This dog now follows you forever (or until you drive off)."],
     cow: ["Moo. (Translation: 'nice portfolio')", "The cow stares into your soul. Respect.", "Moo. The cow has right of way and it knows it."],
     crash: ["Oops! Physics says hi.", "That tree was there first.", "Insurance does not cover procedural trees."],
+    /* When two visitors' Jacks meet in the live world. A = the Jack who walked up, B = the other one.
+       {A} and {B} become their outfit names, e.g. "Royal Velvet Boss". */
+    duo: [
+      [["A", "Wait… are you me?"], ["B", "I'm the {B} build. You're the {A} build."], ["A", "This breaks the Singleton pattern."], ["B", "Shh. Don't tell the recruiter."]],
+      [["A", "Nice outfit. Very {B}."], ["B", "Thanks, it's procedurally generated."], ["A", "Mine too. Same tailor."], ["B", "Our tailor is Math.random()."]],
+      [["A", "Who let you into my world?"], ["B", "Same seed, bro."], ["A", "Then I'm the main character."], ["B", "We're both NPCs to someone."]],
+      [["A", "Race you to the Post Office?"], ["B", "I'll take the car."], ["A", "I'll take the bike."], ["B", "The cow will win anyway."]],
+      [["A", "Did you push to main without testing?"], ["B", "…"], ["A", "Yeah. Me too."], ["B", "It's fine. It's a portfolio."]],
+      [["A", "How many bugs have you squashed?"], ["B", "Enough to feel something."], ["A", "Don't open the console."], ["B", "Never open the console."]],
+      [["A", "Is my hair really this big?"], ["B", "Bigger. It has its own hitbox."], ["A", "Respect."], ["B", "Respect."]],
+      [["A", "Hire me, I'm the original Jack."], ["B", "Hire me, I'm the patched version."], ["A", "…Hire both of us?"], ["B", "Two Jacks, one salary. Deal."]],
+      [["A", "Have you had the filter coffee?"], ["B", "Three. I can see sounds now."], ["A", "That's not the coffee."], ["B", "That's the frame rate."]],
+      [["A", "Where's your dog?"], ["B", "In the car. He drives better than me."], ["A", "Mine has a licence."], ["B", "Procedurally generated?"]]
+    ],
     mailboxLocked: "The Post Office opens once you've seen all my projects. No skipping to the credits!",
     mailbox: ["You made it! You've seen my games, my skills and my questionable hobbies.", "Here's my contact card. Use it wisely — or just say hi."]
   },

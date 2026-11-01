@@ -41,7 +41,13 @@
       hover: [[520, 0, .035, "triangle"]],
       open:  [[392, 0, .07, "square"], [523, .06, .07, "square"], [784, .12, .12, "square"]],
       boing: [[300, 0, .1, "square"], [620, .06, .1, "square"], [450, .12, .12, "triangle"]],
-      deny:  [[220, 0, .12, "sawtooth"], [150, .1, .2, "sawtooth"]]
+      deny:  [[220, 0, .12, "sawtooth"], [150, .1, .2, "sawtooth"]],
+      coin:  [[880, 0, .05, "square"], [1320, .05, .09, "square"]],
+      honk:  [[392, 0, .22, "sawtooth"], [311, 0, .22, "sawtooth"]],
+      bark:  [[520, 0, .06, "square"], [360, .06, .08, "square"]],
+      moo:   [[150, 0, .55, "sawtooth"], [120, .25, .4, "triangle"]],
+      jump:  [[300, 0, .08, "triangle"], [620, .06, .1, "triangle"]],
+      goal:  [[523, 0, .1, "square"], [659, .1, .1, "square"], [784, .2, .1, "square"], [1047, .3, .3, "square"]]
     };
     function sfx(n) {
       init(); if (!ctx || !S.sfx) return; if (ctx.state === "suspended") ctx.resume();

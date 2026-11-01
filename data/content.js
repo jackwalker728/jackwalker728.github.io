@@ -77,6 +77,33 @@ window.CONTENT = {
       "That one only ever showed up on Fridays.",
       "Bug squashed. It's not a feature anymore."
     ],
+    npcNames: ["Placeholder Pete", "QA Priya", "Intern Ishaan", "Bug Bounty Bala", "Shader Shreya", "Lag Lakshmi", "Patch Notes Prakash", "Respawn Ravi", "Hitbox Hema", "Tutorial Tara", "Loot Box Lokesh", "Frame Drop Farah", "Null Pointer Nikhil", "Cutscene Kavya"],
+    npc: [
+      "I'm an NPC. My whole personality is this sentence.",
+      "Jack built me in an afternoon. I'm still waiting for my backstory DLC.",
+      "Bugs glow pink. Squash them. QA will finally sleep.",
+      "Hop on a bike — it's faster. Helmets are procedurally generated.",
+      "Try the filter coffee stall near HQ. Jack runs on it. So does this world.",
+      "I asked Jack for a raise. He increased my Y position.",
+      "Those golden tokens? Singleton tokens. Collect them. Don't ask what they buy.",
+      "There's a pitch somewhere. Cars are allowed. Referees are not.",
+      "Ramps on the roads are for jumping. The physics engine said yes.",
+      "I've walked this exact path 400 times. Please tell my dev I'm tired."
+    ],
+    signs: [
+      "Speed limit: whatever your frame rate allows.",
+      "Caution: procedurally generated potholes ahead. Probably.",
+      "This sign has no collision. Wait — yes it does.",
+      "You are here. (Results may vary per seed.)",
+      "Bangalore traffic simulation: coming in a future update.",
+      "Warning: cows have right of way. Always.",
+      "Respawn point: not here. Drive carefully.",
+      "Fun fact: this whole world is under 1 MB of code."
+    ],
+    coffee: ["Filter coffee acquired! Speed +40% for 20 seconds.", "Strong, sweet, frothy. You can now outrun a compile.", "Kaapi power! Your legs are now Unity's fixed timestep."],
+    dog: ["Good boy! +1 happiness.", "The dog wags. The dog approves of your portfolio choices.", "Petted! This dog now follows you forever (or until you drive off)."],
+    cow: ["Moo. (Translation: 'nice portfolio')", "The cow stares into your soul. Respect.", "Moo. The cow has right of way and it knows it."],
+    crash: ["Oops! Physics says hi.", "That tree was there first.", "Insurance does not cover procedural trees."],
     mailboxLocked: "The Post Office opens once you've seen all my projects. No skipping to the credits!",
     mailbox: ["You made it! You've seen my games, my skills and my questionable hobbies.", "Here's my contact card. Use it wisely — or just say hi."]
   },

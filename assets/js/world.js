@@ -3,6 +3,7 @@
 import { buildJack, randomLook, lookName, getEnv, THREE } from "./jack3d.js";
 import { RoundedBoxGeometry } from "../vendor/RoundedBoxGeometry.js";
 import { joinRoom } from "./mp.js";
+import { playGame, arcade } from "./minigames.js";
 import { EffectComposer } from "../vendor/pp/EffectComposer.js";
 import { RenderPass } from "../vendor/pp/RenderPass.js";
 import { UnrealBloomPass } from "../vendor/pp/UnrealBloomPass.js";
@@ -290,6 +291,18 @@ for (const z of zones) {
   BUILD[z.kind](z, g);
   z.label = labelSprite(z.title, z.sub, z.color); z.label.position.set(0, z.kind === "skills" ? 9 : 8.2, 0); g.add(z.label);
 }
+// arcade cabinets: every project zone has a playable 30-second mini version of that game
+for (const z of zones) if (z.kind === "project" && arcade.has(z.p.id)) {
+  const lx = z.r * .68, lz = z.r * .62, g = new THREE.Group(); g.position.set(lx, .14, lz); g.rotation.y = -.45; z.g.add(g);
+  mesh(GEO.rbox(1.25, 2.2, 1, .08), PAINT(z.color), 0, 1.1, 0, g);
+  mesh(GEO.rbox(1.05, .9, .1, .03), "#120e1c", 0, 1.55, .5, g).rotation.x = -.12;
+  const scr = tex(160, 120, (x, w, h) => { x.fillStyle = "#120e1c"; x.fillRect(0, 0, w, h); x.textAlign = "center"; x.fillStyle = z.color; x.font = "bold 30px monospace"; x.fillText("PLAY", w / 2, h / 2 - 2); x.fillStyle = "#fff"; x.font = "bold 14px monospace"; x.fillText(z.title.toUpperCase().slice(0, 16), w / 2, h / 2 + 26); for (let y = 0; y < h; y += 4) { x.fillStyle = "rgba(0,0,0,.18)"; x.fillRect(0, y, w, 2); } });
+  mesh(new THREE.PlaneGeometry(.9, .68), new THREE.MeshBasicMaterial({ map: scr, toneMapped: false }), 0, 1.56, .56, g).rotation.x = -.12;
+  const deck = mesh(GEO.box(1.25, .12, .5), "#1a1420", 0, 1.02, .6, g); deck.rotation.x = .25;
+  mesh(GEO.sph(.08, 10, 8), "#ff5d8f", .25, .08, 0, deck); mesh(GEO.sph(.08, 10, 8), "#41d3c9", .45, .08, 0, deck); mesh(GEO.cyl(.03, .03, .2, 8), "#222", -.3, .12, 0, deck); mesh(GEO.sph(.08, 10, 8), "#d43c55", -.3, .24, 0, deck);
+  mesh(GEO.box(1.25, .34, .3), glow(Bm(z.color)), 0, 2.36, .3, g);
+  z.cab = { x: z.x + lx, z: z.z + lz }; addCol(z.cab.x, z.cab.z, .85);
+}
 const pitch = zones.find(z => z.kind === "pitch");
 
 /* ---------- ramps (stunt jumps) ---------- */
@@ -452,20 +465,7 @@ function npcTarget(n) {
 }
 npcs.forEach(npcTarget);
 
-/* ---------- animals: dogs, cows, birds ---------- */
-const dogs = [];
-for (let i = 0; i < 3; i++) {
-  const g = new THREE.Group(); scene.add(g); blob(g, .6);
-  const c = rpick(["#b0793f", "#d9b48a", "#5a3d2a", "#f1e6d4"]);
-  mesh(GEO.cap(.3, .7), c, 0, .7, 0, g).rotation.x = Math.PI / 2;
-  const head = mesh(GEO.sph(.33, 12, 10), c, 0, 1.05, .6, g);
-  mesh(GEO.sph(.12, 8, 6), "#1a1210", 0, -.05, .32, head);
-  [-1, 1].forEach(s => { const e = mesh(GEO.cone(.12, .3, 6), darkerHex(c), s * .18, .3, 0, head); e.rotation.z = -s * .4; mesh(GEO.sph(.05, 6, 4), "#1a1210", s * .12, .08, .28, head); });
-  const tail = mesh(GEO.cap(.06, .35), c, 0, .95, -.55, g); tail.rotation.x = -.8;
-  const legs = [[-.18, .38], [.18, .38], [-.18, -.38], [.18, -.38]].map(([x, z]) => mesh(GEO.cyl(.08, .08, .5, 6), c, x, .25, z, g));
-  const home = i === 0 ? zones[0] : pick(zones.slice(1));
-  dogs.push({ g, head, tail, legs, x: home.x + 6, z: home.z + 5, hx: home.x + 6, hz: home.z + 5, yaw: 0, ph: R() * 10, petted: false, tx: home.x, tz: home.z, wait: 0 });
-}
+/* ---------- animals: cows ---------- */
 const cows = [];
 for (let i = 0; i < 2; i++) {
   const g = new THREE.Group(); scene.add(g); blob(g, 1.3);
@@ -477,8 +477,6 @@ for (let i = 0; i < 2; i++) {
   const p = onRoad(rpick(segs), rr(.3, .7), rr(-2, 2));
   cows.push({ g, x: p.x, z: p.z, hx: p.x, hz: p.z, yaw: R() * TAU, tx: p.x, tz: p.z, wait: 0 });
 }
-const birds = Array.from({ length: LOW ? 14 : 26 }, () => ({ r: rr(20, 120), a: R() * TAU, h: rr(16, 30), sp: rr(.05, .12) * (R() < .5 ? 1 : -1), cx: rr(-30, 30), cz: rr(-30, 30) }));
-const birdMesh = new THREE.InstancedMesh(GEO.cone(.3, .9, 4), new THREE.MeshBasicMaterial({ color: "#2b2b35" }), birds.length); birdMesh.userData.noCast = 1; scene.add(birdMesh);
 
 /* ---------- football ---------- */
 const ball = { m: mesh(GEO.sph(.6, 16, 12), "#ffffff", pitch.x, .6, pitch.z, scene), x: pitch.x, z: pitch.z, vx: 0, vz: 0, y: .6, vy: 0, cool: 0 };
@@ -495,9 +493,14 @@ player.position.set(me.x, 0, me.z);
 
 /* ---------- input ---------- */
 const keys = {};
+// physical key position (works on any keyboard layout) with a fallback to the typed character
+const CODE = { KeyW: "w", KeyA: "a", KeyS: "s", KeyD: "d", KeyE: "e", KeyF: "f", KeyH: "h", Space: " ", Enter: "enter", ShiftLeft: "shift", ShiftRight: "shift", ArrowUp: "arrowup", ArrowDown: "arrowdown", ArrowLeft: "arrowleft", ArrowRight: "arrowright" };
+const keyOf = e => CODE[e.code] || e.key.toLowerCase();
+function clearInput() { for (const k in keys) keys[k] = false; if (typeof endStick === "function") endStick({ pointerId: stick.id }); }
 addEventListener("keydown", e => {
   if (e.target.closest && e.target.closest("input,textarea,.drawer")) return;
-  const k = e.key.toLowerCase(); if (keys[k] && ["e", "enter", " ", "f", "h"].includes(k)) return; keys[k] = true;
+  if (arcade.open || e.metaKey || e.ctrlKey || e.altKey) return;
+  const k = keyOf(e); if (keys[k] && ["e", "enter", " ", "f", "h"].includes(k)) return; keys[k] = true;
   if (k === "e" || k === "enter") { e.preventDefault(); interact(); }
   if (k === " ") { e.preventDefault(); if (dialogOpen) next(); else if (!driving) action2(); }
   if (/^[1-6]$/.test(k)) emote(+k - 1);
@@ -506,28 +509,33 @@ addEventListener("keydown", e => {
   if (e.key === "Escape") { if ($("#card").open) $("#card").close(); else if (dialogOpen) closeDialog(); }
   if (e.key.startsWith("Arrow")) e.preventDefault();
 });
-addEventListener("keyup", e => { keys[e.key.toLowerCase()] = false; });
+addEventListener("keyup", e => { keys[keyOf(e)] = false; keys[e.key.toLowerCase()] = false; if (e.key === "Meta" || e.key === "Control" || e.key === "Alt") clearInput(); });
 addEventListener("wheel", e => { if (!started || e.target.closest?.(".drawer,dialog,.quests")) return; zoom = clamp(zoom * (1 + Math.sign(e.deltaY) * .08), .7, 1.7); }, { passive: true });
-document.querySelectorAll("#emotes button").forEach((b, i) => b.addEventListener("click", () => emote(i)));
-addEventListener("blur", () => { for (const k in keys) keys[k] = false; });
+{ const pop = $("#emopop"), btn = $("#emobtn"), show = v => { pop.hidden = !v; btn.setAttribute("aria-expanded", v); };
+  btn.addEventListener("click", e => { e.stopPropagation(); show(pop.hidden); });
+  pop.querySelectorAll("button").forEach((b, i) => b.addEventListener("click", e => { e.stopPropagation(); emote(i); show(false); }));
+  addEventListener("pointerdown", e => { if (!e.target.closest("#emotes")) show(false); }); }
+addEventListener("blur", () => clearInput());
+document.addEventListener("visibilitychange", () => { if (document.hidden) clearInput(); });
+addEventListener("contextmenu", () => clearInput());
 const stick = { x: 0, y: 0, id: null, ox: 0, oy: 0 }, stickEl = $("#stick"), knob = $("#knob");
 $("#pad").addEventListener("pointerdown", e => { stick.id = e.pointerId; stick.ox = e.clientX; stick.oy = e.clientY; stickEl.style.display = "block"; stickEl.style.left = e.clientX + "px"; stickEl.style.top = e.clientY + "px"; e.target.setPointerCapture(e.pointerId); });
-$("#pad").addEventListener("pointermove", e => { if (e.pointerId !== stick.id) return; let dx = e.clientX - stick.ox, dy = e.clientY - stick.oy; const d = Math.hypot(dx, dy), m = 50; if (d > m) { dx = dx / d * m; dy = dy / d * m; } stick.x = dx / m; stick.y = dy / m; knob.style.transform = `translate(${dx}px,${dy}px)`; });
-const endStick = e => { if (e.pointerId !== stick.id) return; stick.id = null; stick.x = stick.y = 0; stickEl.style.display = "none"; knob.style.transform = ""; };
-$("#pad").addEventListener("pointerup", endStick); $("#pad").addEventListener("pointercancel", endStick);
+$("#pad").addEventListener("pointermove", e => { if (e.pointerId !== stick.id) return; let dx = e.clientX - stick.ox, dy = e.clientY - stick.oy; const d = Math.hypot(dx, dy), m = 50; if (d > m) { dx = dx / d * m; dy = dy / d * m; } const dz = Math.hypot(dx, dy) < 9 ? 0 : 1; stick.x = dx / m * dz; stick.y = dy / m * dz; knob.style.transform = `translate(${dx}px,${dy}px)`; });
+const endStick = e => { if (e.pointerId !== stick.id && e.pointerId !== undefined) return; stick.id = null; stick.x = stick.y = 0; stickEl.style.display = "none"; knob.style.transform = ""; };
+["pointerup", "pointercancel", "lostpointercapture"].forEach(ev => $("#pad").addEventListener(ev, endStick));
 $("#act").addEventListener("click", () => interact());
 $("#act2").addEventListener("click", () => dialogOpen ? next() : action2());
 
 /* ---------- missions ---------- */
 const projZones = zones.filter(z => z.kind === "project"), placeZones = zones.filter(z => ["skills", "hobbies", "journey"].includes(z.kind));
-const Q = { hi: false, proj: new Set(), places: new Set(), done: false, tokens: 0, bugs: 0, bike: false, car: false, dogs: new Set(), goal: false, air: false, coffee: false };
+const Q = { hi: false, proj: new Set(), places: new Set(), done: false, tokens: 0, bugs: 0, bike: false, car: false, goal: false, games: new Set(), air: false, coffee: false };
 const TOKEN_GOAL = 30;
 const unlocked = () => Q.proj.size >= projZones.length;
 const sideList = () => [
   [Q.tokens >= TOKEN_GOAL, `Collect ${TOKEN_GOAL} tokens (${Math.min(Q.tokens, TOKEN_GOAL)}/${TOKEN_GOAL})`], [Q.bugs >= bugs.length, `Squash bugs (${Q.bugs}/${bugs.length})`],
-  [Q.bike, "Ride a bike"], [Q.car, "Drive a car"], [Q.dogs.size >= dogs.length, `Pet the dogs (${Q.dogs.size}/${dogs.length})`],
-  [Q.goal, "Score a goal"], [Q.air, "Get 1s of airtime off a ramp"], [Q.coffee, "Drink filter coffee"]];
-let sideOpen = !touch;
+  [Q.bike, "Ride a bike"], [Q.car, "Drive a car"],
+  [Q.games.size >= 3, `Play 3 of my mini-games (${Math.min(Q.games.size, 3)}/3)`], [Q.goal, "Score a goal"], [Q.air, "Get 1s of airtime off a ramp"], [Q.coffee, "Drink filter coffee"]];
+let sideOpen = true;
 function renderQuests() {
   const li = (done, txt, locked) => `<li class="${done ? "done" : ""} ${locked ? "locked" : ""}"><span>${done ? "✅" : locked ? "🔒" : "⬜"}</span><span>${txt}</span></li>`;
   const side = sideList(), sd = side.filter(s => s[0]).length;
@@ -535,14 +543,16 @@ function renderQuests() {
     li(Q.places.size >= placeZones.length, `Skills, hobbies & story (${Q.places.size}/${placeZones.length})`) + li(Q.done, "Reach the Post Office", !unlocked()) +
     `<li class="sidehead" id="sidehead">${sideOpen ? "▾" : "▸"} Side quests ${sd}/${side.length}</li>` + (sideOpen ? side.map(s => li(s[0], s[1])).join("") : "");
   $("#tok").textContent = Q.tokens;
+  $("#qsum").textContent = `${[Q.hi, unlocked(), Q.places.size >= placeZones.length, Q.done].filter(Boolean).length}/4`;
 }
+$("#qbtn").addEventListener("click", () => { const b = $("#qbody"), o = b.hidden; b.hidden = !o; $("#qbtn").setAttribute("aria-expanded", o); A.sfx("click"); });
 $("#qlist").addEventListener("click", e => { if (e.target.closest("#sidehead")) { sideOpen = !sideOpen; renderQuests(); } });
 
 /* ---------- dialog ---------- */
 let dialogOpen = false, dq = [], dz = null, typing = null, full = "", talkingNPC = null;
 const lineEl = $("#line");
-function openDialog(lines, zone, who = "Jack") { dq = lines.slice(); dz = zone; dialogOpen = true; $("#who").textContent = who; $("#dialog").classList.add("show"); document.body.classList.add("talking"); next(); }
-function closeDialog() { dialogOpen = false; $("#dialog").classList.remove("show"); document.body.classList.remove("talking"); clearInterval(typing); talkingNPC = null; const z = dz; dz = null; if (z) done(z); }
+function openDialog(lines, zone, who = "Jack") { clearInput(); dq = lines.slice(); dz = zone; dialogOpen = true; $("#who").textContent = who; $("#dialog").classList.add("show"); document.body.classList.add("talking"); next(); }
+function closeDialog() { clearInput(); dialogOpen = false; $("#dialog").classList.remove("show"); document.body.classList.remove("talking"); clearInterval(typing); talkingNPC = null; const z = dz; dz = null; if (z) done(z); }
 function next() {
   if (typing) { clearInterval(typing); typing = null; if (lineEl.textContent !== full) { lineEl.textContent = full; return; } }
   if (!dq.length) return closeDialog();
@@ -616,8 +626,6 @@ function enterVehicle(v) {
   driving = v; v.vx = v.vz = 0; v.speed = 0; AU.engineOn(v); v.body.add(player); player.position.set(...v.seat); player.rotation.set(0, 0, 0); if (pShadow) pShadow.visible = false;
   JP.legs.forEach(l => l.rotation.x = v.legs); JP.knees.forEach(k => k.rotation.x = v.knees); JP.arms.forEach(a => a.rotation.x = -1.05); JP.elbows.forEach(e => e.rotation.x = -.45);
   if (v.kind === "bike") Q.bike = true; else Q.car = true;
-  const pal = dogs.filter(d => !d.riding && d.mode === "follow").map(d => [d, Math.hypot(d.x - v.x, d.z - v.z)]).filter(([d, dd]) => dd < 30).sort((a, b) => a[1] - b[1])[0];
-  if (pal) { const d = pal[0]; d.riding = v; v.dog = d; v.body.add(d.g); d.g.position.set(...(v.kind === "car" ? [.5, 1.5, -.35] : [0, 1.38, -.9])); d.g.rotation.set(0, 0, 0); d.legs.forEach(l => l.rotation.x = 0); setTimeout(() => { A.sfx("bark"); toast(v.kind === "car" ? "🐶 The dog hopped into the passenger seat. Road trip!" : "🐶 The dog jumped on the back seat. Hold on, buddy!"); }, 1600); }
   A.sfx("open"); toast(`🛵 You're on the ${v.name}! ${touch ? "Drag to drive · pull back to brake · 📯 honk · 💬 exit" : "WASD drive · S brake/reverse · Space drift · Shift boost · H honk · F exit"}`); renderQuests();
 }
 function exitVehicle() {
@@ -625,9 +633,13 @@ function exitVehicle() {
   scene.add(player); JP.knees.forEach(k => k.rotation.x = 0); JP.elbows.forEach(e => e.rotation.x = 0);
   for (let k = 0; k < 8; k++) { const a = v.yaw + Math.PI / 2 + k * Math.PI / 4, t = { x: v.x + Math.sin(a) * (v.r + 1.3), z: v.z + Math.cos(a) * (v.r + 1.3) }; const blocked = pushOut(t, .7) || groundAt(t.x, t.z) > .1 || vehicles.some(o => o !== v && Math.hypot(o.x - t.x, o.z - t.z) < o.r + .8); if (!blocked || k === 7) { me.x = t.x; me.z = t.z; break; } }
   me.y = 0; me.vy = 0; if (pShadow) pShadow.visible = true;
-  if (v.dog) { const d = v.dog; v.dog = null; d.riding = null; scene.add(d.g); const o = { x: me.x + 1.3, z: me.z + .9 }; pushOut(o, .5); d.x = o.x; d.z = o.z; d.g.position.set(d.x, 0, d.z); } yaw = v.yaw; v.speed = 0; A.sfx("click");
+  yaw = v.yaw; v.speed = 0; A.sfx("click");
 }
-function honk() { A.sfx("honk"); mp?.send({ t: "h" }); if (driving.dog) setTimeout(() => A.sfx("bark"), 250); if (cows.some(c => Math.hypot(c.x - driving.x, c.z - driving.z) < 14)) setTimeout(() => { A.sfx("moo"); toast(`🐄 ${pick(WD.cow || ["Moo."])}`); }, 350); npcs.forEach(n => { if (Math.hypot(n.x - driving.x, n.z - driving.z) < 10 && !n.kv) n.vy = 5; }); }
+function openArcade(z) {
+  clearInput();
+  playGame(z.p.id, z.title, score => { clearInput(); Q.games.add(z.p.id); renderQuests(); toast(score ? `🕹️ ${score} points on ${z.title}! (${Math.min(Q.games.size, 3)}/3 games tried)` : `🕹️ ${z.title} tried (${Math.min(Q.games.size, 3)}/3)`); });
+}
+function honk() { A.sfx("honk"); mp?.send({ t: "h" }); if (cows.some(c => Math.hypot(c.x - driving.x, c.z - driving.z) < 14)) setTimeout(() => { A.sfx("moo"); toast(`🐄 ${pick(WD.cow || ["Moo."])}`); }, 350); npcs.forEach(n => { if (Math.hypot(n.x - driving.x, n.z - driving.z) < 10 && !n.kv) n.vy = 5; }); }
 function action2() { if (!started) return; if (driving) return honk(); if (me.y <= me.prevG + .05) { me.y += .1; me.vy = 10; A.sfx("jump"); } }
 
 /* ---------- interaction targets ---------- */
@@ -637,8 +649,8 @@ function findTarget() {
   const c = (type, obj, x, z, range, label) => { const d = Math.hypot(me.x - x, me.z - z), s = d / range; if (d < range && s < bs) { bs = s; best = { type, obj, label }; } };
   if (driving) { if (Math.abs(driving.speed) < 9) for (const z of zones) c("zone", z, z.x, z.z, z.r + 3, `Talk — ${z.title}`); return best; }
   for (const z of zones) c("zone", z, z.x, z.z, z.r + 1.5, `Talk — ${z.title}${z.visited ? " ✓" : ""}`);
+  for (const z of zones) if (z.cab) c("game", z, z.cab.x, z.cab.z, 2.6, `Play ${z.title} 🕹️`);
   for (const n of npcs) c("npc", n, n.x, n.z, 2.8, `Chat — ${n.name}`);
-  for (const d of dogs) c("dog", d, d.x, d.z, 2.6, d.mode === "follow" ? "Tell the dog to stay ✋" : d.mode === "stay" ? "Call the dog: follow me 🐾" : "Pet the dog 🐶");
   for (const w of cows) c("cow", w, w.x, w.z, 3.4, "Say hi to the cow 🐄");
   for (const s of signs) c("sign", s, s.x, s.z, 2.6, "Read the sign");
   c("stall", stall, stall.x, stall.z, 3.6, "Grab filter coffee ☕");
@@ -653,9 +665,7 @@ function interact() {
   A.sfx("click");
   if (t.type === "zone") { if (driving) driving.speed = 0; talk(t.obj); }
   else if (t.type === "npc") npcTalk(t.obj);
-  else if (t.type === "dog") { const d = t.obj; Q.dogs.add(d); d.petted = true; renderQuests();
-    if (d.mode === "follow") { d.mode = "stay"; A.sfx("click"); toast("✋ Sit… stay. He'll wait right here. (E again to call him)"); }
-    else { const was = d.mode; d.mode = "follow"; A.sfx("bark"); burst(d.x, 1.8, d.z, 14, ["#ff6b8b", "#ff9fb8"], 4); toast(was === "stay" ? "🐾 Here, boy! He's following you again." : `🐶 ${pick(WD.dog || ["Good boy!"])} He follows you now (E again: stay).`); } }
+  else if (t.type === "game") openArcade(t.obj);
   else if (t.type === "cow") { A.sfx("moo"); toast(`🐄 ${pick(WD.cow || ["Moo."])}`); }
   else if (t.type === "sign") openDialog([t.obj.text], null, "Signpost");
   else if (t.type === "stall") { buffT = 20; Q.coffee = true; A.sfx("coin"); burst(stall.x, 2, stall.z, 16, ["#c9b38c", "#ffffff"], 4); toast(`☕ ${pick(WD.coffee || ["Coffee! Speed boost."])}`); renderQuests(); }
@@ -666,7 +676,7 @@ function interact() {
 let started = false, t0 = 0, elapsed = 0;
 $("#seedtxt").textContent = `World #${seed} · Jack is wearing: ${lookName(W, look)}`;
 $("#mpnote").innerHTML = solo ? '🎲 Private world, just you. <a href="world.html">🌐 Join the live world</a>' : '🌐 Live world: other visitors show up here too. <a href="world.html?solo=1">🎲 Play a private world</a>';
-$("#start").onclick = () => { $("#intro").hidden = true; $("#emotes").hidden = false; started = true; t0 = performance.now(); A.init(); A.apply(); A.sfx("open"); openDialog(WD.intro || ["Welcome to my world!"], null); };
+$("#start").onclick = () => { clearInput(); $("#intro").hidden = true; $("#emotes").hidden = false; started = true; t0 = performance.now(); A.init(); A.apply(); A.sfx("open"); openDialog(WD.intro || ["Welcome to my world!"], null); };
 $("#share").onclick = async () => { try { await navigator.clipboard.writeText(location.href); toast("World link copied — send someone your exact map!"); } catch (e) { toast(location.href); } };
 const fmt = s => { s = Math.floor(s); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
 function finish() {
@@ -736,7 +746,6 @@ function emote(i) {
   if (!started || dialogOpen || myEmo.cd > 0 || !EMO[i]) return; myEmo.cd = .7;
   playEmote(myEmo, player, i); mp?.send({ t: "e", i });
   if (EMO[i][1] === "wave") npcs.forEach(n => { if (!n.kv && Math.hypot(n.x - me.x, n.z - me.z) < 11) n.waveT = 1.4 + Math.random() * .8; });
-  if (EMO[i][1] === "love") dogs.forEach(d => { if (!d.riding && Math.hypot(d.x - me.x, d.z - me.z) < 8) setTimeout(() => A.sfx("bark"), 300); });
 }
 function emoteAnim(e, P, body, dt, seated) {
   if (!e?.spr) return;
@@ -758,15 +767,14 @@ function respawn() {
   const v = driving, p = { x: rr(-3, 3), z: v ? 17 : 9 }; pushOut(p, v ? 2 : .8);
   if (v) { Object.assign(v, { x: p.x, z: p.z, y: 0, prevG: 0, vy: 0, yaw: 0, vx: 0, vz: 0, speed: 0 }); v.g.position.set(v.x, 0, v.z); v.g.rotation.set(0, 0, 0); }
   me.x = p.x; me.z = p.z; me.y = 0; me.vy = 0; vx = vz = 0;
-  for (const d of dogs) if (d.mode === "follow" && !d.riding) { d.x = p.x + 2; d.z = p.z + 1.5; }
   cam.position.x = me.x; cam.position.z = me.z + 16;
   burst(me.x, 1.5, me.z, 30, ["#7b5cff", "#41d3c9", "#ffffff"], 7); A.sfx("whoosh"); toast("🌀 Whoosh! Back to Singleton HQ.");
 }
 function surfaceAt(x, z) { if (roadDist(x, z) < 2.9) return "road"; for (const q of zones) if (Math.hypot(q.x - x, q.z - z) < q.r) return "stone"; return "grass"; }
 
-/* ---------- natural audio: engine, tyres, footsteps, wind, birds, crickets (all on the SFX bus) ---------- */
+/* ---------- natural audio: engine, tyres, footsteps, wind, crickets (all on the SFX bus) ---------- */
 const AU = (() => {
-  let ctx = null, bus = null, nb = null, amb = null, eng = null, birdT = 2, crickT = 1;
+  let ctx = null, bus = null, nb = null, amb = null, eng = null, crickT = 1;
   function ready() {
     if (ctx) return ctx.state === "running";
     if (!A.ctx || !A.bus) return false; ctx = A.ctx; bus = A.bus;
@@ -802,11 +810,6 @@ const AU = (() => {
     g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t + .006); g.gain.exponentialRampToValueAtTime(.0005, t + d);
     s.connect(f).connect(g).connect(bus); s.start(t, Math.random() * 1.8, d + .02);
   }
-  function bird() {
-    const t = ctx.currentTime, o = out(), n = 2 + Math.floor(Math.random() * 4), f0 = 2300 + Math.random() * 1700, gap = .08 + Math.random() * .06, up = 1.25 + Math.random() * .5;
-    for (let i = 0; i < n; i++) { const s = t + i * gap, osc = ctx.createOscillator(), g = gain(0); osc.type = "sine"; osc.frequency.setValueAtTime(f0, s); osc.frequency.exponentialRampToValueAtTime(f0 * up, s + .04); osc.frequency.exponentialRampToValueAtTime(f0 * .92, s + .08);
-      g.gain.setValueAtTime(0, s); g.gain.linearRampToValueAtTime(.022, s + .012); g.gain.exponentialRampToValueAtTime(.0005, s + .09); osc.connect(g).connect(o); osc.start(s); osc.stop(s + .11); }
-  }
   function cricket() {
     const t = ctx.currentTime, o = out(), f0 = 4200 + Math.random() * 600;
     for (let i = 0; i < 3; i++) { const s = t + i * .045, osc = ctx.createOscillator(), g = gain(0); osc.type = "sine"; osc.frequency.value = f0;
@@ -815,7 +818,6 @@ const AU = (() => {
   function ambience(dt, night, speed) {
     if (!ready()) return; const t = ctx.currentTime;
     amb.wg.gain.setTargetAtTime(.018 + Math.min(.05, speed * .0018), t, .6); amb.wf.frequency.setTargetAtTime(260 + speed * 14, t, .6);
-    if ((birdT -= dt) <= 0) { birdT = 1.8 + Math.random() * 4.5; if (night < .5) bird(); }
     if ((crickT -= dt) <= 0) { crickT = .7 + Math.random() * .9; if (night > .5) cricket(); }
   }
   return { engineOn, engine, engineOff, step, ambience };
@@ -848,7 +850,7 @@ const myName = lookName(W, look);
 const SLOTS = [["top", "tops"], ["pants", "pants"], ["shoes", "shoes"], ["hat", "hats"], ["glasses", "glasses"], ["neck", "neck"], ["hand", "hand"]];
 const cleanLook = l => Object.fromEntries(SLOTS.map(([k, list]) => [k, W[list].some(x => x.id === l?.[k]) ? l[k] : W[list][0].id]));
 const num = (v, lo, hi) => { v = +v; return Number.isFinite(v) ? clamp(v, lo, hi) : 0; };
-function updateOnline() { const el = $("#online"); if (!mp) { el.hidden = true; return; } el.hidden = false; el.textContent = remotes.size ? `🌐 ${remotes.size + 1} Jacks in this world` : "🌐 Live world · waiting for other Jacks"; }
+function updateOnline() { const el = $("#online"); el.hidden = !mp || !remotes.size; if (!el.hidden) el.textContent = `👥 ${remotes.size + 1}`; el.title = "Jacks in this world"; }
 function addRemote(id, lk) {
   if (remotes.has(id)) return remotes.get(id);
   const L = cleanLook(lk), g = new THREE.Group(); scene.add(g);
@@ -928,7 +930,7 @@ let last = performance.now(), frame = 0, clock = 0, raf = 0;
 function tick(now) {
   raf = requestAnimationFrame(tick);
   const dt = Math.min(.05, (now - last) / 1000); last = now; clock += dt; frame++; crashCool -= dt; buffT -= dt;
-  const canMove = started && !dialogOpen && !$("#card").open;
+  const canMove = started && !dialogOpen && !$("#card").open && !arcade.open;
   let ix = 0, iz = 0;
   if (canMove) {
     ix = (keys.d || keys.arrowright ? 1 : 0) - (keys.a || keys.arrowleft ? 1 : 0) + stick.x;
@@ -991,7 +993,6 @@ function tick(now) {
     const ox = me.x, oz = me.z; me.x += vx * dt; me.z += vz * dt;
     if (groundAt(me.x, me.z) - me.y > .6) { me.x = ox; me.z = oz; }
     for (const n of npcs) if (!n.kv) sep(me, n, 1.15, .45);
-    for (const d of dogs) if (!d.riding) sep(me, d, 1.05, .2);
     for (const c of cows) sep(me, c, 1.9, 1);
     avoidVehicles(me, .6); pushOut(me, .7);
     vertical(me, dt);
@@ -1040,33 +1041,12 @@ function tick(now) {
     if (n.vy || n.y > 0) { n.vy -= 30 * dt; n.y += n.vy * dt; if (n.y <= 0) { n.y = 0; n.vy = 0; if (n.kv) { n.kv = null; n.g.rotation.x = 0; } } }
     n.g.position.set(n.x, n.y, n.z); n.g.rotation.y = n.yaw;
   }
-  // ----- dogs: a petted dog follows you; tell it to stay and it sits and waits; strays wander and sniff
-  for (const d of dogs) {
-    if (d.riding) { d.tail.rotation.y = Math.sin(clock * 22) * .6; d.head.rotation.y = Math.sin(clock * 1.3) * .4; continue; }
-    const dP = Math.hypot(d.x - me.x, d.z - me.z); let tx, tz, sp = 0;
-    if (d.mode === "follow") {
-      if (dP > 45) { const a = (driving ? driving.yaw : yaw) + Math.PI, o = { x: me.x + Math.sin(a) * 4, z: me.z + Math.cos(a) * 4 }; pushOut(o, .5); d.x = o.x; d.z = o.z; }
-      else if (dP > 2.6) { tx = me.x; tz = me.z; sp = Math.min(driving ? 16 : 10, dP * 1.6); if (frame % 420 === 0 && dP < 10) A.sfx("bark"); }
-    } else if (d.mode === "stay") d.yaw = lerpA(d.yaw, Math.atan2(me.x - d.x, me.z - d.z), dt * 3);
-    else if (dP < 7 && dP > 2.4 && !driving) { tx = me.x; tz = me.z; sp = 3.5; }
-    else if (d.wait > 0) d.wait -= dt;
-    else { const dd = Math.hypot(d.tx - d.x, d.tz - d.z); if (dd < 1) { d.tx = d.hx + (Math.random() - .5) * 16; d.tz = d.hz + (Math.random() - .5) * 16; d.wait = 1 + Math.random() * 3; } else { tx = d.tx; tz = d.tz; sp = 3; } }
-    if (sp) { const dx = tx - d.x, dz = tz - d.z, dd = Math.hypot(dx, dz) || 1; d.x += dx / dd * sp * dt; d.z += dz / dd * sp * dt; d.yaw = lerpA(d.yaw, Math.atan2(dx, dz), dt * 8); avoidVehicles(d, .5); pushOut(d, .5); }
-    d.sit = (d.sit || 0) + ((d.mode === "stay" ? 1 : 0) - (d.sit || 0)) * Math.min(1, dt * 6);
-    const run = sp > 0 ? 1 : 0, s = Math.sin(clock * 14 + d.ph) * run;
-    d.legs.forEach((l, i) => l.rotation.x = (i % 2 ? s : -s) * .6 - (i > 1 ? d.sit * 1.1 : 0));
-    d.tail.rotation.y = Math.sin(clock * (dP < 6 ? 22 : 8)) * .6;
-    d.g.position.set(d.x, Math.abs(s) * .08 + d.sit * .12, d.z); d.g.rotation.y = d.yaw; d.g.rotation.x = -d.sit * .38;
-  }
   // ----- cows: slow and unbothered
   for (const c of cows) {
     if (c.wait > 0) c.wait -= dt;
     else { const dx = c.tx - c.x, dz = c.tz - c.z, d = Math.hypot(dx, dz); if (d < .5) { c.tx = c.hx + (Math.random() - .5) * 14; c.tz = c.hz + (Math.random() - .5) * 14; c.wait = 3 + Math.random() * 6; } else { c.x += dx / d * 1 * dt; c.z += dz / d * 1 * dt; c.yaw = lerpA(c.yaw, Math.atan2(dx, dz), dt * 2); pushOut(c, 1.2); } }
     c.g.position.set(c.x, 0, c.z); c.g.rotation.y = c.yaw;
   }
-  // ----- birds
-  birds.forEach((b, i) => { b.a += b.sp * dt; dummy.position.set(b.cx + Math.cos(b.a) * b.r, b.h + Math.sin(clock * 2 + i) * .5, b.cz + Math.sin(b.a) * b.r); dummy.rotation.set(Math.PI / 2, 0, -b.a - (b.sp > 0 ? 0 : Math.PI)); dummy.scale.set(1 + Math.sin(clock * 12 + i) * .4, 1, 1); dummy.updateMatrix(); birdMesh.setMatrixAt(i, dummy.matrix); });
-  birdMesh.instanceMatrix.needsUpdate = true;
   // ----- football
   {
     const b = ball, dx = b.x - mover.x, dz = b.z - mover.z, d = Math.hypot(dx, dz), m = mover.r + .6;
@@ -1122,7 +1102,7 @@ function tick(now) {
       pr.textContent = driving ? (target ? `${kE} — ${target.label} · ` : "") + (touch ? "💬 exit · 📯 honk" : "F exit · H honk · Shift boost") : `${kE} — ${target.label}`;
       pr.classList.add("show");
     } else pr.classList.remove("show");
-    $("#act").textContent = driving && !target ? "🚪" : target?.type === "vehicle" ? "🚗" : target?.type === "dog" ? "🐶" : target?.type === "stall" ? "☕" : "💬";
+    $("#act").textContent = driving && !target ? "🚪" : target?.type === "vehicle" ? "🚗" : target?.type === "game" ? "🕹️" : target?.type === "stall" ? "☕" : "💬";
     $("#act2").textContent = driving ? "📯" : "⤴";
     $("#boost").hidden = !(buffT > 0);
   }
@@ -1148,4 +1128,4 @@ scene.traverse(o => { if (!o.isMesh) return; o.receiveShadow = true; if (!SHADOW
 dayNight(.08); renderQuests(); drawMini();
 $("#loading").remove();
 raf = requestAnimationFrame(tick);
-if (url.searchParams.has("debug")) window.__world = { get remotes() { return remotes; }, get mp() { return mp; }, get duo() { return duo; }, get frame() { return frame; }, pen: (x, z, r) => { const o = { x, z }; pushOut(o, r); return Math.hypot(o.x - x, o.z - z); }, rampY: (x, z) => groundAt(x, z), ramps, get near() { return target?.type === "zone" ? target.obj : null; }, get target() { return target; }, zones, bugs, tokens, vehicles, npcs, dogs, ball, pitch, Q, me, tp: (x, z) => { if (driving) { driving.x = x; driving.z = z; } else { me.x = x; me.z = z; } }, enter: v => enterVehicle(v), exit: () => exitVehicle(), get driving() { return driving; }, talk: z => talk(z), next: () => next(), get dialogOpen() { return dialogOpen; }, keys, emote, myEmo, respawn, tod: t => { clock = ((t - .08 + 1) % 1) * DAY; }, get clock() { return clock; }, get zoom() { return zoom; }, set zoom(z) { zoom = z; } };
+if (url.searchParams.has("debug")) window.__world = { get remotes() { return remotes; }, get mp() { return mp; }, get duo() { return duo; }, get frame() { return frame; }, pen: (x, z, r) => { const o = { x, z }; pushOut(o, r); return Math.hypot(o.x - x, o.z - z); }, rampY: (x, z) => groundAt(x, z), ramps, get near() { return target?.type === "zone" ? target.obj : null; }, get target() { return target; }, zones, bugs, tokens, vehicles, npcs, ball, pitch, Q, me, tp: (x, z) => { if (driving) { driving.x = x; driving.z = z; } else { me.x = x; me.z = z; } }, enter: v => enterVehicle(v), exit: () => exitVehicle(), get driving() { return driving; }, talk: z => talk(z), next: () => next(), get dialogOpen() { return dialogOpen; }, keys, emote, myEmo, arcade, play: id => openArcade(zones.find(z => z.p?.id === id)), respawn, tod: t => { clock = ((t - .08 + 1) % 1) * DAY; }, get clock() { return clock; }, get zoom() { return zoom; }, set zoom(z) { zoom = z; } };

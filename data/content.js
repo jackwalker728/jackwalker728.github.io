@@ -101,7 +101,6 @@ window.CONTENT = {
       "Fun fact: this whole world is under 1 MB of code."
     ],
     coffee: ["Filter coffee acquired! Speed +40% for 20 seconds.", "Strong, sweet, frothy. You can now outrun a compile.", "Kaapi power! Your legs are now Unity's fixed timestep."],
-    dog: ["Good boy! +1 happiness.", "The dog wags. The dog approves of your portfolio choices.", "Petted! This dog now follows you forever (or until you drive off)."],
     cow: ["Moo. (Translation: 'nice portfolio')", "The cow stares into your soul. Respect.", "Moo. The cow has right of way and it knows it."],
     crash: ["Oops! Physics says hi.", "That tree was there first.", "Insurance does not cover procedural trees."],
     /* When two visitors' Jacks meet in the live world. A = the Jack who walked up, B = the other one.
@@ -116,7 +115,7 @@ window.CONTENT = {
       [["A", "Is my hair really this big?"], ["B", "Bigger. It has its own hitbox."], ["A", "Respect."], ["B", "Respect."]],
       [["A", "Hire me, I'm the original Jack."], ["B", "Hire me, I'm the patched version."], ["A", "…Hire both of us?"], ["B", "Two Jacks, one salary. Deal."]],
       [["A", "Have you had the filter coffee?"], ["B", "Three. I can see sounds now."], ["A", "That's not the coffee."], ["B", "That's the frame rate."]],
-      [["A", "Where's your dog?"], ["B", "In the car. He drives better than me."], ["A", "Mine has a licence."], ["B", "Procedurally generated?"]]
+      [["A", "What's your high score on the arcade?"], ["B", "Classified."], ["A", "So… zero?"], ["B", "It's a soft launch."]]
     ],
     mailboxLocked: "The Post Office opens once you've seen all my projects. No skipping to the credits!",
     mailbox: ["You made it! You've seen my games, my skills and my questionable hobbies.", "Here's my contact card. Use it wisely — or just say hi."]

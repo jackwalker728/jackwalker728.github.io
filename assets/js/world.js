@@ -1,6 +1,6 @@
 /* Jack's World v2 — big procedural open world: roads, vehicles, NPCs, animals, day/night, collectibles, physics toys.
    Three.js, toon style, instanced decor, mobile-friendly. Content comes from data/content.js. */
-import { buildJack, randomLook, lookName, THREE } from "./jack3d.js";
+import { buildJack, randomLook, lookName, getEnv, THREE } from "./jack3d.js";
 
 const { C, A, $, esc, pick, toast } = window.Jack;
 const WD = C.world || {}, P = C.profile, TAU = Math.PI * 2;
@@ -9,6 +9,7 @@ const LOW = touch || (navigator.hardwareConcurrency || 8) <= 4;
 if (touch) document.body.classList.add("is-touch");
 const WR = 140; // playable radius
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+function probeHit(v) { let hit = false; const s = Math.sin(v.yaw), c = Math.cos(v.yaw); for (const [off, r] of v.probes) { const p = { x: v.x + s * off, z: v.z + c * off }, ox = p.x, oz = p.z; if (pushOut(p, r)) { v.x += p.x - ox; v.z += p.z - oz; hit = true; } } return hit; }
 const angDiff = (a, b) => ((a - b + Math.PI) % TAU + TAU) % TAU - Math.PI;
 
 /* ---------- seed: every visitor gets a different world, shareable via ?seed= ---------- */
@@ -23,17 +24,27 @@ const R = rng(hash(seed)), rr = (a, b) => a + R() * (b - a), rpick = a => a[Math
 const host = $("#game");
 const renderer = new THREE.WebGLRenderer({ antialias: !LOW, powerPreference: "high-performance" });
 renderer.setPixelRatio(Math.min(devicePixelRatio || 1, LOW ? 1.25 : 1.75));
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.1;
+const SHADOWS = !LOW; if (SHADOWS) { renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; }
+const ENV = getEnv(renderer);
 host.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 const skyC = new THREE.Color("#a8dcea"); scene.background = skyC; scene.fog = new THREE.Fog(skyC, 70, 175);
 const cam = new THREE.PerspectiveCamera(touch ? 50 : 42, 1, .5, 320);
 const hemi = new THREE.HemisphereLight("#ffffff", "#5b7a4a", 1.7); scene.add(hemi);
-const sun = new THREE.DirectionalLight("#fff3dc", 2.3); sun.position.set(30, 60, 20); scene.add(sun);
+const sun = new THREE.DirectionalLight("#fff3dc", 2.3); sun.position.set(30, 60, 20); scene.add(sun); scene.add(sun.target);
+if (SHADOWS) { sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); const sc = sun.shadow.camera; sc.left = sc.bottom = -42; sc.right = sc.top = 42; sc.near = 1; sc.far = 170; sun.shadow.bias = -.0004; sun.shadow.normalBias = .05; }
 
 const grad = (() => { const t = new THREE.DataTexture(new Uint8Array([110, 185, 255]), 3, 1, THREE.RedFormat); t.minFilter = t.magFilter = THREE.NearestFilter; t.needsUpdate = true; return t; })();
 const mc = new Map();
-const M = c => mc.get(c) || (mc.set(c, new THREE.MeshToonMaterial({ color: c, gradientMap: grad })), mc.get(c));
-const Bm = (c, op = 1) => new THREE.MeshBasicMaterial({ color: c, transparent: op < 1, opacity: op, depthWrite: op === 1 });
+const M = c => mc.get(c) || (mc.set(c, new THREE.MeshStandardMaterial({ color: c, roughness: .85 })), mc.get(c));
+const withEnv = m => { m.envMap = ENV; return m; };
+const PAINT = c => withEnv(new THREE.MeshPhysicalMaterial({ color: c, roughness: .32, metalness: .15, clearcoat: 1, clearcoatRoughness: .08 }));
+const CHROME = withEnv(new THREE.MeshStandardMaterial({ color: "#d4d8de", roughness: .2, metalness: 1 }));
+const TYRE = new THREE.MeshStandardMaterial({ color: "#1b1b20", roughness: .95 });
+const GLASSM = withEnv(new THREE.MeshPhysicalMaterial({ color: "#bfe7ff", roughness: .05, transparent: true, opacity: .35, clearcoat: 1, depthWrite: false }));
+const WATER = withEnv(new THREE.MeshPhysicalMaterial({ color: "#3fa9cf", roughness: .06, metalness: .1, clearcoat: 1 }));
+const Bm = (c, op = 1) => new THREE.MeshBasicMaterial({ color: c, transparent: op < 1, opacity: op, depthWrite: op === 1, toneMapped: false });
 function mesh(geo, mat, x = 0, y = 0, z = 0, parent) { const m = new THREE.Mesh(geo, typeof mat === "string" ? M(mat) : mat); m.position.set(x, y, z); if (parent) parent.add(m); return m; }
 const GEO = {
   box: (a, b, c) => new THREE.BoxGeometry(a, b, c), cyl: (a, b, h, s = 16) => new THREE.CylinderGeometry(a, b, h, s),
@@ -41,11 +52,11 @@ const GEO = {
   tor: (r, t, rs = 8, ts = 32) => new THREE.TorusGeometry(r, t, rs, ts), disc: r => new THREE.CircleGeometry(r, 40),
   cap: (r, l) => new THREE.CapsuleGeometry(r, l, 4, 10)
 };
-const flat = m => { m.rotation.x = -Math.PI / 2; return m; };
+const flat = m => { m.rotation.x = -Math.PI / 2; m.userData.noCast = 1; return m; };
 function canvasSprite(w, h, draw, scale) {
   const c = document.createElement("canvas"); c.width = w; c.height = h; draw(c.getContext("2d"), w, h);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
-  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, depthWrite: false })); s.scale.set(...scale); return s;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, depthWrite: false, toneMapped: false })); s.scale.set(...scale); return s;
 }
 function rrect(x, X, Y, W, H, r) { x.beginPath(); x.moveTo(X + r, Y); x.arcTo(X + W, Y, X + W, Y + H, r); x.arcTo(X + W, Y + H, X, Y + H, r); x.arcTo(X, Y + H, X, Y, r); x.arcTo(X, Y, X + W, Y, r); x.closePath(); }
 function labelSprite(title, sub, color) {
@@ -57,7 +68,7 @@ function labelSprite(title, sub, color) {
   }, [7.2, 2.1, 1]);
 }
 const glyphSprite = (g, s = 2.4) => canvasSprite(128, 128, x => { x.font = "96px system-ui,'Apple Color Emoji','Segoe UI Emoji',sans-serif"; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText(g, 64, 70); }, [s, s, 1]);
-const blob = (parent, r) => { const s = flat(mesh(GEO.disc(r), Bm("#000000", .22), 0, .05, 0, parent)); return s; };
+const blob = (parent, r) => SHADOWS ? null : flat(mesh(GEO.disc(r), Bm("#000000", .22), 0, .05, 0, parent));
 
 /* ---------- layout: zones + roads (MST) + ponds ---------- */
 const zones = [{ kind: "home", title: "Singleton HQ", sub: "Start here", x: 0, z: 0, r: 7, color: "#d43c55" }];
@@ -96,8 +107,13 @@ for (let i = 0, n = 5 + Math.floor(R() * 4); i < n * 60 && ponds.length < n; i++
 /* ---------- colliders (spatial grid) ---------- */
 const grid = new Map(), CELL = 10, key = (cx, cz) => cx * 1000 + cz;
 function addCol(x, z, r) { const k = key(Math.floor(x / CELL), Math.floor(z / CELL)); (grid.get(k) || grid.set(k, []).get(k)).push({ x, z, r }); }
-function nearCols(x, z) { const cx = Math.floor(x / CELL), cz = Math.floor(z / CELL), out = []; for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) { const g = grid.get(key(cx + i, cz + j)); if (g) out.push(...g); } return out; }
-function pushOut(o, rad) { let hit = false; for (const c of nearCols(o.x, o.z)) { const dx = o.x - c.x, dz = o.z - c.z, d = Math.hypot(dx, dz), m = c.r + rad; if (d < m && d > 1e-4) { o.x = c.x + dx / d * m; o.z = c.z + dz / d * m; hit = true; } } const pd = Math.hypot(o.x, o.z); if (pd > WR) { o.x *= WR / pd; o.z *= WR / pd; hit = true; } return hit; }
+function addBox(x, z, hw, hd) { const b = { x, z, hw, hd, box: true }; for (let cx = Math.floor((x - hw) / CELL); cx <= Math.floor((x + hw) / CELL); cx++) for (let cz = Math.floor((z - hd) / CELL); cz <= Math.floor((z + hd) / CELL); cz++) { const k = key(cx, cz); (grid.get(k) || grid.set(k, []).get(k)).push(b); } }
+function nearCols(x, z) { const cx = Math.floor(x / CELL), cz = Math.floor(z / CELL), out = new Set(); for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) { const g = grid.get(key(cx + i, cz + j)); if (g) for (const c of g) out.add(c); } return out; }
+function sep(a, b, minD, share) { const dx = a.x - b.x, dz = a.z - b.z, d = Math.hypot(dx, dz); if (d < minD && d > 1e-4) { const o = minD - d; a.x += dx / d * o * share; a.z += dz / d * o * share; b.x -= dx / d * o * (1 - share); b.z -= dz / d * o * (1 - share); return true; } return false; }
+function pushOut(o, rad) { let hit = false; for (const c of nearCols(o.x, o.z)) {
+    if (c.box) { const qx = clamp(o.x, c.x - c.hw, c.x + c.hw), qz = clamp(o.z, c.z - c.hd, c.z + c.hd), bx = o.x - qx, bz = o.z - qz, bd = Math.hypot(bx, bz);
+      if (bd < rad) { if (bd < 1e-4) { const px = c.hw - Math.abs(o.x - c.x), pz = c.hd - Math.abs(o.z - c.z); if (px < pz) o.x = c.x + Math.sign(o.x - c.x || 1) * (c.hw + rad); else o.z = c.z + Math.sign(o.z - c.z || 1) * (c.hd + rad); } else { o.x = qx + bx / bd * rad; o.z = qz + bz / bd * rad; } hit = true; } continue; }
+    const dx = o.x - c.x, dz = o.z - c.z, d = Math.hypot(dx, dz), m = c.r + rad; if (d < m && d > 1e-4) { o.x = c.x + dx / d * m; o.z = c.z + dz / d * m; hit = true; } } const pd = Math.hypot(o.x, o.z); if (pd > WR) { o.x *= WR / pd; o.z *= WR / pd; hit = true; } return hit; }
 
 /* ---------- ground, roads, ponds ---------- */
 flat(mesh(GEO.disc(270), "#7cc46b", 0, 0, 0, scene));
@@ -109,7 +125,7 @@ for (const [a, b] of segs) {
   mesh(GEO.box(5.6, .06, d), "#555a66", mx, .03, mz, scene).rotation.y = ang;
   for (let s = 3; s < d - 3; s += 5) dashes.push({ x: a.x + dx * s / d, z: a.z + dz * s / d, ry: ang, s: 1, y: .07 });
 }
-for (const p of ponds) { flat(mesh(GEO.disc(p.r + .8), "#e6d3a3", p.x, .025, p.z, scene)); flat(mesh(GEO.disc(p.r), Bm("#5ec8e8"), p.x, .05, p.z, scene)); addCol(p.x, p.z, p.r - .4); }
+for (const p of ponds) { flat(mesh(GEO.disc(p.r + .8), "#e6d3a3", p.x, .025, p.z, scene)); flat(mesh(GEO.disc(p.r), WATER, p.x, .05, p.z, scene)); addCol(p.x, p.z, p.r - .4); }
 
 /* ---------- instanced decor ---------- */
 function okSpot(x, z, clear) { return zones.every(q => Math.hypot(q.x - x, q.z - z) > q.r + clear + 1.5) && roadDist(x, z) > 4.2 + clear && ponds.every(p => Math.hypot(p.x - x, p.z - z) > p.r + clear + .8); }
@@ -119,7 +135,7 @@ function instanced(geo, mat, items, tint) {
   items.forEach((it, i) => { dummy.position.set(it.x, it.y || 0, it.z); dummy.rotation.set(it.rx || 0, it.ry || 0, 0); dummy.scale.setScalar(it.s ?? 1); dummy.updateMatrix(); im.setMatrixAt(i, dummy.matrix); if (tint) im.setColorAt(i, col.set(tint(it))); });
   scene.add(im); return im;
 }
-instanced(GEO.box(.28, .02, 2.2), "#f3d36b", dashes);
+instanced(GEO.box(.28, .02, 2.2), "#f3d36b", dashes).userData.noCast = 1;
 const trees = [], pines = [];
 for (let i = 0, n = LOW ? 380 : 650; i < n * 5 && trees.length + pines.length < n; i++) {
   const a = R() * TAU, d = Math.sqrt(R()) * (WR - 2), x = Math.cos(a) * d, z = Math.sin(a) * d, s = rr(.8, 1.4);
@@ -136,7 +152,7 @@ instanced(new THREE.IcosahedronGeometry(.9, 0), "#ffffff", bushes, () => rpick([
 const rocks = []; for (let i = 0; i < 900 && rocks.length < 110; i++) { const x = rr(-WR, WR), z = rr(-WR, WR), s = rr(.5, 1.3); if (Math.hypot(x, z) < WR && okSpot(x, z, s)) { rocks.push({ x, z, s, y: .3 * s, ry: R() * TAU }); addCol(x, z, .7 * s); } }
 instanced(new THREE.DodecahedronGeometry(.8, 0), "#ffffff", rocks, () => rpick(["#9aa0a8", "#b3b8bf", "#8a9099"]));
 const flowers = []; for (let i = 0; i < (LOW ? 450 : 900); i++) { const x = rr(-WR, WR), z = rr(-WR, WR); if (Math.hypot(x, z) < WR && okSpot(x, z, .2)) flowers.push({ x, z, s: rr(.7, 1.2), y: .18 }); }
-instanced(GEO.sph(.18, 6, 4), "#ffffff", flowers, () => rpick(["#ff6b8b", "#ffd166", "#ffffff", "#c38bff", "#ff9f43"]));
+instanced(GEO.sph(.18, 6, 4), "#ffffff", flowers, () => rpick(["#ff6b8b", "#ffd166", "#ffffff", "#c38bff", "#ff9f43"])).userData.noCast = 1;
 // lamp posts along roads (glow at night)
 const lampMat = new THREE.MeshBasicMaterial({ color: "#6b6b74" }), lamps = [];
 segs.forEach(s => { const d = Math.hypot(s[1].x - s[0].x, s[1].z - s[0].z); for (let t = 14, k = 0; t < d - 8; t += 20, k++) { const p = onRoad(s, t / d, k % 2 ? 4.6 : -4.6); if (zones.every(q => Math.hypot(q.x - p.x, q.z - p.z) > q.r + 1.5)) { lamps.push(p); addCol(p.x, p.z, .35); } } });
@@ -151,7 +167,7 @@ const BUILD = {
     const roof = mesh(GEO.cone(4.9, 3, 4), "#d43c55", 0, 5.5, -1.5, g); roof.rotation.y = Math.PI / 4;
     mesh(GEO.box(1.4, 2.4, .2), "#3a2a20", 0, 1.2, 1.05, g);
     [-1.9, 1.9].forEach(x => { const m = Bm("#ffe7a3"); glowMats.push(m); mesh(GEO.box(1.1, 1, .15), m, x, 2.4, 1.05, g); });
-    addCol(z.x, z.z - 1.5, 3.4);
+    addBox(z.x, z.z - 1.5, 3, 2.5);
   },
   project(z, g) {
     const c = z.color, cat = z.p.category;
@@ -180,7 +196,7 @@ const BUILD = {
     [-2.6, 2.6].forEach(x => { mesh(GEO.cyl(.15, .15, 2.4, 8), "#ffffff", x, 1.2, -10, g); addCol(z.x + x, z.z - 10, .3); });
     mesh(GEO.box(5.5, .25, .25), "#ffffff", 0, 2.4, -10, g);
     const net = mesh(GEO.box(5.2, 2.3, .05), Bm("#ffffff", .25), 0, 1.15, -11.2, g);
-    z.goal = { x: z.x, z: z.z - 10 };
+    z.goal = { x: z.x, z: z.z - 10 }; addBox(z.x, z.z - 11.25, 2.7, .12); addBox(z.x - 2.75, z.z - 10.6, .1, .7); addBox(z.x + 2.75, z.z - 10.6, .1, .7);
   },
   mailbox(z, g) {
     mesh(GEO.cyl(.12, .12, 1.6, 6), "#5a5a66", 0, .8, 0, g);
@@ -247,7 +263,7 @@ for (let i = 0; i < 8; i++) { const p = onRoad(rpick(segs), rr(.2, .8), rr(-1.5,
 /* ---------- particles (confetti, hearts, sparks) ---------- */
 const PN = 220, parts = [], pim = new THREE.InstancedMesh(GEO.box(.2, .2, .2), new THREE.MeshBasicMaterial({ color: "#ffffff" }), PN);
 for (let i = 0; i < PN; i++) { parts.push({ life: 0 }); pim.setColorAt(i, col.set("#ffffff")); dummy.scale.setScalar(0); dummy.updateMatrix(); pim.setMatrixAt(i, dummy.matrix); }
-scene.add(pim); let pIdx = 0;
+pim.userData.noCast = 1; scene.add(pim); let pIdx = 0;
 function burst(x, y, z, n = 30, colors = ["#ff6b8b", "#ffd166", "#41d3c9", "#7b5cff", "#ffffff"], power = 7) {
   for (let i = 0; i < n; i++) { const p = parts[pIdx], j = pIdx; pIdx = (pIdx + 1) % PN; Object.assign(p, { x, y, z, vx: (Math.random() - .5) * power, vy: Math.random() * power + 3, vz: (Math.random() - .5) * power, life: 1 + Math.random() }); pim.setColorAt(j, col.set(colors[i % colors.length])); }
   pim.instanceColor.needsUpdate = true;
@@ -257,23 +273,23 @@ function burst(x, y, z, n = 30, colors = ["#ff6b8b", "#ffd166", "#41d3c9", "#7b5
 const vehicles = [];
 function makeBike(color, x, z, yaw) {
   const g = new THREE.Group(), body = new THREE.Group(); g.add(body); scene.add(g); blob(g, 1.1);
-  const wheels = [.95, -.95].map(zz => { const w = mesh(GEO.tor(.42, .14, 8, 20), "#1b1b20", 0, .5, zz, body); w.rotation.y = Math.PI / 2; mesh(GEO.cyl(.2, .2, .22, 10), "#9a9aa5", 0, .5, zz, body).rotation.z = Math.PI / 2; return w; });
-  mesh(GEO.box(.44, .55, 1.5), color, 0, 1.0, 0, body); mesh(GEO.box(.36, .14, .8), "#1b1b20", 0, 1.32, -.35, body);
-  mesh(GEO.box(.12, .9, .12), "#9a9aa5", 0, 1.0, .85, body).rotation.x = -.35;
-  mesh(GEO.cyl(.05, .05, 1.0, 6), "#1b1b20", 0, 1.5, .72, body).rotation.z = Math.PI / 2;
+  const wheels = [.95, -.95].map(zz => { const w = mesh(GEO.tor(.42, .14, 10, 24), TYRE, 0, .5, zz, body); w.rotation.y = Math.PI / 2; mesh(GEO.cyl(.24, .24, .2, 16), CHROME, 0, .5, zz, body).rotation.z = Math.PI / 2; return w; });
+  mesh(GEO.box(.44, .55, 1.5), PAINT(color), 0, 1.0, 0, body); mesh(GEO.box(.36, .14, .8), "#1b1b20", 0, 1.32, -.35, body);
+  mesh(GEO.box(.12, .9, .12), CHROME, 0, 1.0, .85, body).rotation.x = -.35;
+  mesh(GEO.cyl(.05, .05, 1.0, 8), CHROME, 0, 1.5, .72, body).rotation.z = Math.PI / 2;
   mesh(GEO.sph(.14, 10, 8), Bm("#fff6c2"), 0, 1.25, 1.12, body); mesh(GEO.box(.3, .12, .3), Bm("#ff4060"), 0, 1.15, -.92, body);
-  return { kind: "bike", name: "electric bike", g, body, wheels, wr: .5, x, z, y: 0, vy: 0, prevG: 0, yaw, speed: 0, r: 1.1, maxS: 30, turn: 3.2, seat: [0, .88, -.35], legs: -1.15, lean: true };
+  return { kind: "bike", name: "electric bike", g, body, wheels, wr: .5, x, z, y: 0, vy: 0, prevG: 0, yaw, speed: 0, r: 1.1, maxS: 30, turn: 3.2, seat: [0, .13, -.32], legs: -1.0, knees: 1.15, lean: true, probes: [[-.55, .62], [.55, .62]] };
 }
 function makeCar(color, x, z, yaw) {
   const g = new THREE.Group(), body = new THREE.Group(); g.add(body); scene.add(g); blob(g, 2.2);
-  mesh(GEO.box(2.3, .8, 3.8), color, 0, .9, 0, body); mesh(GEO.box(2.36, .32, 3.9), darkerHex(color), 0, .52, 0, body);
+  mesh(GEO.box(2.3, .8, 3.8), PAINT(color), 0, .9, 0, body); mesh(GEO.box(2.36, .32, 3.9), PAINT(darkerHex(color)), 0, .52, 0, body);
   mesh(GEO.box(2, .2, 1.2), "#1b1b20", 0, 1.35, -.4, body);
   [-.5, .5].forEach(x => mesh(GEO.box(.8, .8, .25), "#2a2433", x, 1.55, -.95, body));
-  mesh(GEO.box(2.1, .7, .08), Bm("#bfe7ff", .45), 0, 1.6, .55, body).rotation.x = -.35;
-  mesh(GEO.box(2.3, .25, .25), "#dddddd", 0, .6, 1.95, body); mesh(GEO.box(2.3, .25, .25), "#dddddd", 0, .6, -1.95, body);
+  mesh(GEO.box(2.1, .7, .08), GLASSM, 0, 1.6, .55, body).rotation.x = -.35;
+  mesh(GEO.box(2.3, .25, .25), CHROME, 0, .6, 1.95, body); mesh(GEO.box(2.3, .25, .25), CHROME, 0, .6, -1.95, body);
   [-.75, .75].forEach(x => { mesh(GEO.sph(.16, 10, 8), Bm("#fff6c2"), x, .95, 1.92, body); mesh(GEO.box(.35, .15, .1), Bm("#ff4060"), x, .95, -1.93, body); });
-  const wheels = [[-1.12, 1.25], [1.12, 1.25], [-1.12, -1.25], [1.12, -1.25]].map(([wx, wz]) => { const w = mesh(GEO.cyl(.48, .48, .36, 14), "#1b1b20", wx, .48, wz, body); w.rotation.z = Math.PI / 2; return w; });
-  return { kind: "car", name: "convertible", g, body, wheels, wr: .48, spinAxis: "y", x, z, y: 0, vy: 0, prevG: 0, yaw, speed: 0, r: 1.9, maxS: 26, turn: 2.4, seat: [-.5, .75, -.35], legs: -1.45, lean: false };
+  const wheels = [[-1.12, 1.25], [1.12, 1.25], [-1.12, -1.25], [1.12, -1.25]].map(([wx, wz]) => { const w = mesh(GEO.cyl(.48, .48, .36, 18), TYRE, wx, .48, wz, body); w.rotation.z = Math.PI / 2; mesh(GEO.cyl(.28, .28, .38, 14), CHROME, wx, .48, wz, body).rotation.z = Math.PI / 2; return w; });
+  return { kind: "car", name: "convertible", g, body, wheels, wr: .48, spinAxis: "y", x, z, y: 0, vy: 0, prevG: 0, yaw, speed: 0, r: 1.9, maxS: 26, turn: 2.4, seat: [-.5, .2, -.35], legs: -1.45, knees: 1.45, lean: false, probes: [[-1.05, 1.15], [0, 1.15], [1.05, 1.15]] };
 }
 function darkerHex(c) { return "#" + new THREE.Color(c).multiplyScalar(.7).getHexString(); }
 function spawnVehicle(fn, color, near) {
@@ -289,24 +305,16 @@ spawnVehicle(makeBike, "#41d3c9"); spawnVehicle(makeCar, "#f3b94d"); if (!LOW) s
 vehicles.forEach(v => { v.g.position.set(v.x, 0, v.z); v.g.rotation.y = v.yaw; });
 
 /* ---------- NPCs ---------- */
+const W = C.wardrobe;
 const npcs = [], names = (WD.npcNames || ["NPC"]).slice().sort(() => R() - .5);
 function makeNPC(i) {
-  const g = new THREE.Group(); scene.add(g); blob(g, .7);
-  const skin = rpick(["#8b5a3c", "#a8714d", "#6e4329", "#c58c62", "#9a6646"]), shirt = rpick(["#41d3c9", "#f3b94d", "#7b5cff", "#d43c55", "#5cbf5f", "#ff9f43", "#f4f4f1"]), pants = rpick(["#2a2433", "#3b5a8a", "#5a5a66", "#c9b38c"]);
-  const legs = [-1, 1].map(s => { const l = new THREE.Group(); l.position.set(s * .2, .75, 0); mesh(GEO.cap(.15, .35), pants, 0, -.35, 0, l); g.add(l); return l; });
-  mesh(GEO.cap(.45, .45), shirt, 0, 1.3, 0, g);
-  const arms = [-1, 1].map(s => { const a = new THREE.Group(); a.position.set(s * .55, 1.55, 0); mesh(GEO.cap(.12, .4), shirt, 0, -.3, 0, a); mesh(GEO.sph(.13, 8, 6), skin, 0, -.6, 0, a); g.add(a); return a; });
-  const head = new THREE.Group(); head.position.y = 2.25; g.add(head);
-  mesh(GEO.sph(.55, 16, 12), skin, 0, 0, 0, head);
-  [-.19, .19].forEach(x => mesh(GEO.sph(.07, 8, 6), "#1a1210", x, .05, .5, head));
-  const hs = R();
-  if (hs < .35) mesh(new THREE.SphereGeometry(.6, 16, 8, 0, TAU, 0, Math.PI / 2.2), rpick(["#1a1311", "#3a2a20", "#6b4128"]), 0, .05, -.02, head);
-  else if (hs < .6) { mesh(new THREE.SphereGeometry(.6, 16, 8, 0, TAU, 0, Math.PI / 2), rpick(["#d43c55", "#41d3c9", "#2a2433"]), 0, .1, 0, head); mesh(GEO.cyl(.45, .45, .06, 16), "#2a2433", 0, .12, .35, head).scale.z = 1.2; }
-  else if (hs < .8) { mesh(new THREE.SphereGeometry(.6, 16, 8, 0, TAU, 0, Math.PI / 2.2), "#1a1311", 0, .05, -.02, head); mesh(GEO.sph(.25, 10, 8), "#1a1311", 0, .62, -.25, head); }
+  const { g: body, P: NP } = buildJack(W, randomLook(W, R), { lite: true, skin: rpick(["#8b5a3c", "#a8714d", "#6e4329", "#c58c62", "#9a6646", "#d8a27a"]), hair: rpick(["short", "bun", "long", "short", "bald"]), hairColor: rpick(["#1a1311", "#3a2a20", "#6b4128", "#2a2a2a"]), beard: R() < .35 });
+  body.scale.setScalar(1.4 * rr(.92, 1.04));
+  const g = new THREE.Group(); g.add(body); scene.add(g); blob(g, .7);
   const p = rpick(zones);
-  return { g, legs, arms, head, name: names[i % names.length], x: p.x + rr(-p.r - 4, p.r + 4), z: p.z + rr(-p.r - 4, p.r + 4), y: 0, vy: 0, yaw: R() * TAU, tx: 0, tz: 0, wait: rr(0, 3), ph: R() * 10, kv: null };
+  return { g, legs: NP.legs, knees: NP.knees, arms: NP.arms, head: NP.head, name: names[i % names.length], x: p.x + rr(-p.r - 4, p.r + 4), z: p.z + rr(-p.r - 4, p.r + 4), y: 0, vy: 0, yaw: R() * TAU, tx: 0, tz: 0, wait: rr(0, 3), ph: R() * 10, kv: null };
 }
-for (let i = 0; i < (LOW ? 8 : 14); i++) { const n = makeNPC(i); pushOut(n, .6); npcs.push(n); }
+for (let i = 0; i < (LOW ? 6 : 10); i++) { const n = makeNPC(i); pushOut(n, .6); npcs.push(n); }
 function npcTarget(n) {
   if (Math.random() < .6) { const z = pick(zones); n.tx = z.x + (Math.random() - .5) * z.r * 2.4; n.tz = z.z + (Math.random() - .5) * z.r * 2.4; }
   else { const p = onRoad(pick(segs), Math.random(), (Math.random() < .5 ? 1 : -1) * 3.2); n.tx = p.x; n.tz = p.z; }
@@ -339,16 +347,16 @@ for (let i = 0; i < 2; i++) {
   cows.push({ g, x: p.x, z: p.z, hx: p.x, hz: p.z, yaw: R() * TAU, tx: p.x, tz: p.z, wait: 0 });
 }
 const birds = Array.from({ length: LOW ? 14 : 26 }, () => ({ r: rr(20, 120), a: R() * TAU, h: rr(16, 30), sp: rr(.05, .12) * (R() < .5 ? 1 : -1), cx: rr(-30, 30), cz: rr(-30, 30) }));
-const birdMesh = new THREE.InstancedMesh(GEO.cone(.3, .9, 4), new THREE.MeshBasicMaterial({ color: "#2b2b35" }), birds.length); scene.add(birdMesh);
+const birdMesh = new THREE.InstancedMesh(GEO.cone(.3, .9, 4), new THREE.MeshBasicMaterial({ color: "#2b2b35" }), birds.length); birdMesh.userData.noCast = 1; scene.add(birdMesh);
 
 /* ---------- football ---------- */
 const ball = { m: mesh(GEO.sph(.6, 16, 12), "#ffffff", pitch.x, .6, pitch.z, scene), x: pitch.x, z: pitch.z, vx: 0, vz: 0, y: .6, vy: 0, cool: 0 };
 mesh(GEO.tor(.6, .06, 6, 20), "#1a1420", 0, 0, 0, ball.m); mesh(GEO.tor(.6, .06, 6, 20), "#1a1420", 0, 0, 0, ball.m).rotation.y = Math.PI / 2;
 
 /* ---------- player (3D Jack) ---------- */
-const W = C.wardrobe, look = randomLook(W);
+const look = randomLook(W);
 const player = new THREE.Group(); scene.add(player);
-const { g: jg, P: JP } = buildJack(W, look); const JS = .58; jg.scale.setScalar(JS); jg.position.y = 3.1 * JS; player.add(jg);
+const { g: jg, P: JP } = buildJack(W, look, { curls: LOW ? 250 : 420, beardCurls: LOW ? 80 : 160 }); const JS = 1.4; jg.scale.setScalar(JS); player.add(jg);
 const pShadow = blob(player, .9);
 const me = { x: 0, z: 6.5, y: 0, vy: 0, prevG: 0 };
 let vx = 0, vz = 0, yaw = 0, phase = 0, driving = null, buffT = 0, airStart = 0;
@@ -471,15 +479,16 @@ function npcTalk(n) {
 
 /* ---------- vehicles: enter / exit / honk ---------- */
 function enterVehicle(v) {
-  driving = v; v.body.add(player); player.position.set(...v.seat); player.rotation.set(0, 0, 0); pShadow.visible = false;
-  JP.legs.forEach(l => l.rotation.x = v.legs); JP.arms.forEach(a => a.rotation.x = -1.0);
+  driving = v; v.body.add(player); player.position.set(...v.seat); player.rotation.set(0, 0, 0); if (pShadow) pShadow.visible = false;
+  JP.legs.forEach(l => l.rotation.x = v.legs); JP.knees.forEach(k => k.rotation.x = v.knees); JP.arms.forEach(a => a.rotation.x = -1.05); JP.elbows.forEach(e => e.rotation.x = -.45);
   if (v.kind === "bike") Q.bike = true; else Q.car = true;
   A.sfx("open"); toast(`🛵 You're on the ${v.name}! ${touch ? "Drag to drive · 📯 honk · 💬 exit" : "WASD drive · Shift boost · H honk · F exit"}`); renderQuests();
 }
 function exitVehicle() {
   const v = driving; if (!v) return; driving = null;
-  scene.add(player); const side = v.yaw + Math.PI / 2; me.x = v.x + Math.sin(side) * (v.r + 1.2); me.z = v.z + Math.cos(side) * (v.r + 1.2); me.y = 0; me.vy = 0; pushOut(me, .7);
-  pShadow.visible = true; yaw = v.yaw; v.speed = 0; A.sfx("click");
+  scene.add(player); JP.knees.forEach(k => k.rotation.x = 0); JP.elbows.forEach(e => e.rotation.x = 0);
+  for (let k = 0; k < 8; k++) { const a = v.yaw + Math.PI / 2 + k * Math.PI / 4, t = { x: v.x + Math.sin(a) * (v.r + 1.3), z: v.z + Math.cos(a) * (v.r + 1.3) }; const blocked = pushOut(t, .7) || groundAt(t.x, t.z) > .1 || vehicles.some(o => o !== v && Math.hypot(o.x - t.x, o.z - t.z) < o.r + .8); if (!blocked || k === 7) { me.x = t.x; me.z = t.z; break; } }
+  me.y = 0; me.vy = 0; if (pShadow) pShadow.visible = true; yaw = v.yaw; v.speed = 0; A.sfx("click");
 }
 function honk() { A.sfx("honk"); if (cows.some(c => Math.hypot(c.x - driving.x, c.z - driving.z) < 14)) setTimeout(() => { A.sfx("moo"); toast(`🐄 ${pick(WD.cow || ["Moo."])}`); }, 350); npcs.forEach(n => { if (Math.hypot(n.x - driving.x, n.z - driving.z) < 10 && !n.kv) n.vy = 5; }); }
 function action2() { if (!started) return; if (driving) return honk(); if (me.y <= me.prevG + .05) { me.y += .1; me.vy = 10; A.sfx("jump"); } }
@@ -604,8 +613,13 @@ function tick(now) {
       v.speed += (tgt - v.speed) * (1 - Math.exp(-dt * 1.3));
       if (v.lean) v.body.rotation.z += (clamp(-diff, -.6, .6) * Math.min(1, v.speed / 12) - v.body.rotation.z) * Math.min(1, dt * 6);
     } else { v.speed *= Math.exp(-dt * (airborne ? .1 : 1.1)); if (v.lean) v.body.rotation.z *= 1 - Math.min(1, dt * 4); }
-    v.x += Math.sin(v.yaw) * v.speed * dt; v.z += Math.cos(v.yaw) * v.speed * dt;
-    if (pushOut(v, v.r)) { if (Math.abs(v.speed) > 6 && crashCool < 0) { crashCool = 1.2; A.sfx("boing"); burst(v.x, 1, v.z, 10, ["#ffd166", "#ffffff"], 5); if (Math.abs(v.speed) > 16) toast(`💥 ${pick(WD.crash || ["Oops!"])}`); } v.speed *= -.3; }
+    const steps = Math.max(1, Math.ceil(Math.abs(v.speed * dt) / .35)); let hit = false;
+    for (let i = 0; i < steps && !hit; i++) {
+      const ox = v.x, oz = v.z; v.x += Math.sin(v.yaw) * v.speed * dt / steps; v.z += Math.cos(v.yaw) * v.speed * dt / steps;
+      if (groundAt(v.x, v.z) - v.y > .6) { v.x = ox; v.z = oz; hit = true; }
+      else hit = probeHit(v);
+    }
+    if (hit) { if (Math.abs(v.speed) > 6 && crashCool < 0) { crashCool = 1.2; A.sfx("boing"); burst(v.x, 1, v.z, 10, ["#ffd166", "#ffffff"], 5); if (Math.abs(v.speed) > 16) toast(`💥 ${pick(WD.crash || ["Oops!"])}`); } v.speed *= -.3; }
     for (const o of vehicles) if (o !== v) { const dx = v.x - o.x, dz = v.z - o.z, d = Math.hypot(dx, dz), m = v.r + o.r; if (d < m && d > 1e-3) { v.x = o.x + dx / d * m; v.z = o.z + dz / d * m; v.speed *= -.3; } }
     for (const c of cows) { const dx = v.x - c.x, dz = v.z - c.z, d = Math.hypot(dx, dz), m = v.r + 1.3; if (d < m && d > 1e-3) { v.x = c.x + dx / d * m; v.z = c.z + dz / d * m; if (Math.abs(v.speed) > 5 && crashCool < 0) { crashCool = 2; A.sfx("moo"); toast("🐄 The cow wins. The cow always wins."); } v.speed *= -.4; } }
     const wasAir = airborne;
@@ -615,12 +629,16 @@ function tick(now) {
     v.wheels.forEach(w => { if (v.kind === "bike") w.rotation.x += v.speed * dt / v.wr; else w.rotation.x += v.speed * dt / v.wr; });
     me.x = v.x; me.z = v.z;
     JP.head.rotation.set(0, Math.sin(clock * .7) * .1, 0);
-    jg.position.y = 3.1 * JS + Math.sin(clock * 20) * .015 * Math.min(1, Math.abs(v.speed) / 10);
+    jg.position.y = Math.sin(clock * 20) * .012 * Math.min(1, Math.abs(v.speed) / 10);
   } else { // ----- on foot
     const sp = (keys.shift ? 13 : 8.5) * (buffT > 0 ? 1.4 : 1), k = 1 - Math.exp(-dt * 12);
     vx += (ix * sp - vx) * k; vz += (iz * sp - vz) * k;
-    me.x += vx * dt; me.z += vz * dt; pushOut(me, .7);
-    for (const v of vehicles) { const dx = me.x - v.x, dz = me.z - v.z, d = Math.hypot(dx, dz), m = v.r + .6; if (d < m && d > 1e-3) { me.x = v.x + dx / d * m; me.z = v.z + dz / d * m; } }
+    const ox = me.x, oz = me.z; me.x += vx * dt; me.z += vz * dt;
+    if (groundAt(me.x, me.z) - me.y > .6) { me.x = ox; me.z = oz; }
+    for (const n of npcs) if (!n.kv) sep(me, n, 1.15, .45);
+    for (const d of dogs) sep(me, d, 1.05, .2);
+    for (const c of cows) sep(me, c, 1.9, 1);
+    avoidVehicles(me, .6); pushOut(me, .7);
     vertical(me, dt);
     player.position.set(me.x, me.y, me.z);
     const speed = Math.hypot(vx, vz), mv = Math.min(1, speed / 8.5);
@@ -629,11 +647,12 @@ function tick(now) {
     const sw = Math.sin(phase) * mv, airF = me.y > me.prevG + .05;
     JP.legs[0].rotation.x = airF ? -.6 : sw * .75; JP.legs[1].rotation.x = airF ? .4 : -sw * .75;
     JP.arms[0].rotation.x = airF ? -2.2 : -sw * .6; JP.arms[1].rotation.x = airF ? -2.2 : sw * .6;
-    jg.position.y = 3.1 * JS + Math.abs(Math.sin(phase)) * .18 * mv + Math.sin(clock * 2.2) * .03 * (1 - mv);
+    JP.knees[0].rotation.x = airF ? .9 : Math.max(0, sw) * 1.1; JP.knees[1].rotation.x = airF ? .5 : Math.max(0, -sw) * 1.1; JP.elbows.forEach(e => e.rotation.x = -.3);
+    jg.position.y = Math.abs(Math.sin(phase)) * .08 * mv + Math.sin(clock * 2.2) * .008 * (1 - mv);
     JP.head.rotation.set(0, Math.sin(clock * .7) * .15 * (1 - mv), Math.sin(phase) * .05 * mv);
-    pShadow.position.y = .05 - me.y + groundAt(me.x, me.z); pShadow.scale.setScalar(Math.max(.4, 1 - (me.y - groundAt(me.x, me.z)) * .15));
+    if (pShadow) { pShadow.position.y = .05 - me.y + groundAt(me.x, me.z); pShadow.scale.setScalar(Math.max(.4, 1 - (me.y - groundAt(me.x, me.z)) * .15)); }
   }
-  JP.hair.scale.setScalar(1 + Math.abs(Math.sin(clock * 4)) * .02);
+  { const hs = 1 + Math.abs(Math.sin(clock * 4)) * .015; JP.hair.scale.set(hs, hs * JP.hairBaseY, hs); }
   const bt = clock % 4; JP.eyes.forEach(e => e.scale.y = bt < .12 ? .1 : 1);
   const mover = driving || { x: me.x, z: me.z, speed: Math.hypot(vx, vz), r: .7, yaw };
 
@@ -647,13 +666,14 @@ function tick(now) {
       const dx = n.tx - n.x, dz = n.tz - n.z, d = Math.hypot(dx, dz);
       if (d < 1) { n.wait = 2 + Math.random() * 5; npcTarget(n); }
       else { n.x += dx / d * 2.4 * dt; n.z += dz / d * 2.4 * dt; n.yaw = lerpA(n.yaw, Math.atan2(dx, dz), dt * 5); if (pushOut(n, .6)) { n.stuck = (n.stuck || 0) + dt; if (n.stuck > 2) { n.stuck = 0; npcTarget(n); } } }
-      const s = Math.sin(clock * 8 + n.ph); n.legs[0].rotation.x = s * .6; n.legs[1].rotation.x = -s * .6; n.arms[0].rotation.x = -s * .5; n.arms[1].rotation.x = s * .5;
+      const s = Math.sin(clock * 8 + n.ph); n.legs[0].rotation.x = s * .6; n.legs[1].rotation.x = -s * .6; n.knees[0].rotation.x = Math.max(0, s) * .9; n.knees[1].rotation.x = Math.max(0, -s) * .9; n.arms[0].rotation.x = -s * .5; n.arms[1].rotation.x = s * .5;
     }
     if (driving && !n.kv && Math.hypot(n.x - driving.x, n.z - driving.z) < driving.r + .7 && Math.abs(driving.speed) > 6) {
       const dx = n.x - driving.x, dz = n.z - driving.z, d = Math.hypot(dx, dz) || 1, f = Math.abs(driving.speed) * .7;
       n.kv = { x: dx / d * f, z: dz / d * f }; n.vy = 9; driving.speed *= .6; A.sfx("boing"); if (crashCool < 0) { crashCool = 1.5; toast(`😵 ${n.name}: "My hitbox! I'll respawn, don't worry."`); }
     }
-    n.prevG = n.prevG || 0; n.y = n.y || 0;
+    for (const m of npcs) if (m !== n && !m.kv) sep(n, m, 1.1, .5);
+    if (!n.kv) { avoidVehicles(n, .55); pushOut(n, .55); }
     if (n.vy || n.y > 0) { n.vy -= 30 * dt; n.y += n.vy * dt; if (n.y <= 0) { n.y = 0; n.vy = 0; if (n.kv) { n.kv = null; n.g.rotation.x = 0; } } }
     n.g.position.set(n.x, n.y, n.z); n.g.rotation.y = n.yaw;
   }
@@ -662,7 +682,7 @@ function tick(now) {
     const dP = Math.hypot(d.x - me.x, d.z - me.z); let tx, tz, sp = 0;
     if (dP < 18 && dP > 2.6) { tx = me.x; tz = me.z; sp = Math.min(driving ? 14 : 9, dP * 1.6); if (frame % 240 === 0 && dP < 10) A.sfx("bark"); }
     else if (dP >= 18) { if (d.wait > 0) d.wait -= dt; else { const dd = Math.hypot(d.tx - d.x, d.tz - d.z); if (dd < 1) { d.tx = d.hx + (Math.random() - .5) * 16; d.tz = d.hz + (Math.random() - .5) * 16; d.wait = 1 + Math.random() * 3; } else { tx = d.tx; tz = d.tz; sp = 3; } } }
-    if (sp) { const dx = tx - d.x, dz = tz - d.z, dd = Math.hypot(dx, dz) || 1; d.x += dx / dd * sp * dt; d.z += dz / dd * sp * dt; d.yaw = lerpA(d.yaw, Math.atan2(dx, dz), dt * 8); pushOut(d, .5); }
+    if (sp) { const dx = tx - d.x, dz = tz - d.z, dd = Math.hypot(dx, dz) || 1; d.x += dx / dd * sp * dt; d.z += dz / dd * sp * dt; d.yaw = lerpA(d.yaw, Math.atan2(dx, dz), dt * 8); avoidVehicles(d, .5); pushOut(d, .5); }
     const run = sp > 0 ? 1 : 0, s = Math.sin(clock * 14 + d.ph) * run;
     d.legs.forEach((l, i) => l.rotation.x = (i % 2 ? s : -s) * .6);
     d.tail.rotation.y = Math.sin(clock * (dP < 6 ? 22 : 8)) * .6;
@@ -682,8 +702,13 @@ function tick(now) {
     const b = ball, dx = b.x - mover.x, dz = b.z - mover.z, d = Math.hypot(dx, dz), m = mover.r + .6;
     if (d < m && d > 1e-3) { const sp = Math.max(6, Math.abs(mover.speed) * 1.25); b.vx = dx / d * sp; b.vz = dz / d * sp; b.vy = Math.min(8, sp * .25); A.sfx("hover"); }
     const ox = b.x, oz = b.z;
-    b.x += b.vx * dt; b.z += b.vz * dt; b.vx *= Math.exp(-dt * .9); b.vz *= Math.exp(-dt * .9);
-    const bo = { x: b.x, z: b.z }; if (pushOut(bo, .6)) { b.vx *= -.6; b.vz *= -.6; b.x = bo.x; b.z = bo.z; }
+    const bs = Math.max(1, Math.ceil(Math.hypot(b.vx, b.vz) * dt / .3));
+    for (let i = 0; i < bs; i++) {
+      b.x += b.vx * dt / bs; b.z += b.vz * dt / bs; const bo = { x: b.x, z: b.z };
+      if (pushOut(bo, .6)) { const nx = bo.x - b.x, nz = bo.z - b.z, nl = Math.hypot(nx, nz) || 1, dot = (b.vx * nx + b.vz * nz) / nl; if (dot < 0) { b.vx -= 1.6 * dot * nx / nl; b.vz -= 1.6 * dot * nz / nl; } b.x = bo.x; b.z = bo.z; }
+      avoidVehicles(b, .6);
+    }
+    b.vx *= Math.exp(-dt * .9); b.vz *= Math.exp(-dt * .9);
     b.vy -= 25 * dt; b.y += b.vy * dt; if (b.y < .6) { b.y = .6; b.vy = Math.abs(b.vy) > 2 ? -b.vy * .45 : 0; }
     b.m.position.set(b.x, b.y, b.z); b.m.rotation.x += b.vz * dt / .6; b.m.rotation.z -= b.vx * dt / .6;
     const gz = pitch.goal; b.cool -= dt;
@@ -731,6 +756,7 @@ function tick(now) {
   }
   if (frame % 8 === 0) drawMini();
   if (started && frame % 30 === 0) { elapsed = (now - t0) / 1000; $("#timer").textContent = fmt(elapsed); }
+  if (SHADOWS) { sun.position.set(me.x + 30, 60, me.z + 20); sun.target.position.set(me.x, 0, me.z); }
   // ----- camera follows (pulls back with speed, looks ahead)
   const spd = Math.abs(mover.speed || 0), kz = Math.min(1, spd / 26);
   const offY = (touch ? 17 : 13.5) + kz * 9, offZ = (touch ? 19 : 16) + kz * 8;
@@ -740,12 +766,14 @@ function tick(now) {
   cam.lookAt(cam.position.x, 1.2, cam.position.z - offZ + .5);
   renderer.render(scene, cam);
 }
+function avoidVehicles(o, r) { for (const v of vehicles) { if (v === driving) continue; const dx = o.x - v.x, dz = o.z - v.z, d = Math.hypot(dx, dz), m = v.r + r; if (d < m && d > 1e-3) { o.x = v.x + dx / d * m; o.z = v.z + dz / d * m; } } }
 function lerpA(a, b, t) { return a + angDiff(b, a) * t; }
 function resize() { renderer.setSize(innerWidth, innerHeight, false); cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix(); }
 addEventListener("resize", resize); resize();
 cam.position.set(me.x, 13.5, me.z + 16);
 document.addEventListener("visibilitychange", () => { if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else if (!raf) { last = performance.now(); raf = requestAnimationFrame(tick); } });
+scene.traverse(o => { if (!o.isMesh) return; o.receiveShadow = true; if (!SHADOWS || o.userData.noCast || o.castShadow) return; const g = o.geometry; if (!g.boundingBox) g.computeBoundingBox(); if ((g.boundingBox.max.y - g.boundingBox.min.y) * o.scale.y > .2) o.castShadow = true; });
 dayNight(.08); renderQuests(); drawMini();
 $("#loading").remove();
 raf = requestAnimationFrame(tick);
-if (url.searchParams.has("debug")) window.__world = { get near() { return target?.type === "zone" ? target.obj : null; }, get target() { return target; }, zones, bugs, tokens, vehicles, npcs, dogs, ball, pitch, Q, me, tp: (x, z) => { if (driving) { driving.x = x; driving.z = z; } else { me.x = x; me.z = z; } }, enter: v => enterVehicle(v), exit: () => exitVehicle(), get driving() { return driving; }, talk: z => talk(z), next: () => next(), get dialogOpen() { return dialogOpen; }, keys };
+if (url.searchParams.has("debug")) window.__world = { get frame() { return frame; }, pen: (x, z, r) => { const o = { x, z }; pushOut(o, r); return Math.hypot(o.x - x, o.z - z); }, rampY: (x, z) => groundAt(x, z), ramps, get near() { return target?.type === "zone" ? target.obj : null; }, get target() { return target; }, zones, bugs, tokens, vehicles, npcs, dogs, ball, pitch, Q, me, tp: (x, z) => { if (driving) { driving.x = x; driving.z = z; } else { me.x = x; me.z = z; } }, enter: v => enterVehicle(v), exit: () => exitVehicle(), get driving() { return driving; }, talk: z => talk(z), next: () => next(), get dialogOpen() { return dialogOpen; }, keys };

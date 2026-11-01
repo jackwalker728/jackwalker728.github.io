@@ -38,7 +38,7 @@ Every edit you commit goes live automatically.
 - For real AI on any question, set up the free Cloudflare Worker: see `worker/README.md`, then paste its URL into `chat.workerUrl`.
 
 ## 3D Jack
-- `assets/js/jack3d.js`: cute chibi Jack built from code (no model files), toon-shaded, ~170 KB gzipped incl. Three.js.
+- `assets/js/jack3d.js`: semi-realistic Jack built from code (no model files): human proportions, PBR skin/hair/fabric, ~1,100 instanced hair curls, textured beard, real eyes, studio lighting (RoomEnvironment) and soft shadows. The world reuses the same builder for NPCs (lighter detail).
 - Wardrobe (tops, hats, glasses, neck, held items, pants, shoes) lives in `content.js → wardrobe`. Change colours/names there.
 - The 2D Jack shows instantly and the 3D one swaps in once loaded. On very old devices without WebGL, the 2D one stays.
 - Rendering pauses when the tab is hidden or Jack is scrolled off screen (saves battery).

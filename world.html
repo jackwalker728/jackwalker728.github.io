@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Jack's World</title>
+<meta name="description" content="Play as Jack in a procedurally generated world and discover his projects.">
+<meta name="theme-color" content="#0e0b12">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕹️</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<style>
+html,body{height:100%;overflow:hidden;overscroll-behavior:none}
+body{background:#9fd8e6;-webkit-user-select:none;user-select:none;touch-action:none}
+#game{position:fixed;inset:0}
+#game canvas{display:block;width:100%;height:100%}
+.hud{position:fixed;z-index:5}
+.quests{top:max(12px,env(safe-area-inset-top));left:12px;background:rgba(14,11,18,.8);border:1px solid var(--line);border-radius:14px;padding:10px 14px;width:min(290px,calc(100vw - 172px));font-size:13.5px}
+.quests h3{font:700 11.5px var(--mono);color:var(--gold);text-transform:uppercase;letter-spacing:.12em;margin-bottom:6px;display:flex;justify-content:space-between}
+.quests ul{padding:0;margin:0}
+.quests li{list-style:none;display:flex;gap:8px;line-height:1.35;padding:2px 0}
+.quests li.done{color:var(--muted);text-decoration:line-through}
+.quests li.locked{opacity:.5}
+.tr{top:max(12px,env(safe-area-inset-top));right:12px;display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.tr .row{display:flex;gap:8px}
+#mini{width:140px;height:140px;border-radius:50%;border:3px solid rgba(14,11,18,.8);display:block}
+.prompt{left:50%;bottom:130px;transform:translateX(-50%);background:var(--text);color:#1a1420;padding:8px 16px;border-radius:99px;font-weight:700;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap}
+.prompt.show{opacity:1}
+.dialog{left:50%;bottom:max(14px,env(safe-area-inset-bottom));transform:translateX(-50%);width:min(680px,calc(100vw - 24px));background:rgba(14,11,18,.93);border:2px solid var(--line);border-radius:18px;padding:14px 18px 12px;display:none;cursor:pointer}
+.dialog.show{display:block;animation:pop .25s cubic-bezier(.3,1.5,.5,1)}
+.who{font:700 12px var(--mono);color:var(--gold);text-transform:uppercase;letter-spacing:.1em}
+.dialog p{font-size:17px;line-height:1.5;margin:4px 0 8px;min-height:3em}
+.dialog .foot{display:flex;justify-content:space-between;align-items:center;gap:10px;min-height:34px}
+.dialog .next{font:12px var(--mono);color:var(--muted)}
+.overlay{position:fixed;inset:0;z-index:20;display:grid;place-items:center;background:rgba(14,11,18,.78);padding:16px}
+.overlay[hidden]{display:none}
+.panel{background:var(--bg2);border:1px solid var(--line);border-radius:22px;padding:clamp(20px,4vw,34px);width:min(540px,100%);max-height:100%;overflow:auto;text-align:center}
+.panel h1{font:800 clamp(34px,6vw,52px)/1 var(--fd);letter-spacing:-.03em;margin:6px 0 10px}
+.panel h1 em{font-style:normal;color:var(--gold)}
+.panel p{color:var(--soft)}
+.panel ul{text-align:left;color:var(--soft);margin:12px 0;padding-left:20px}
+.keys{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:16px 0;font-size:14px;text-align:left}
+.keys div{background:var(--card);border-radius:10px;padding:8px 10px}
+kbd{font:600 12px var(--mono);background:var(--card2);border:1px solid var(--line);border-radius:6px;padding:1px 6px}
+.panel .actions{justify-content:center}
+.seed{font:12px var(--mono);color:var(--teal)}
+#loading{position:fixed;inset:0;display:grid;place-items:center;font:700 18px var(--fd);color:#1a1420;z-index:1}
+.touch{display:none}
+.is-touch .touch{display:block}
+.is-touch .keys{display:none}
+#pad{position:fixed;left:0;bottom:0;width:60vw;height:55vh;z-index:4}
+#stick{position:fixed;width:110px;height:110px;margin:-55px 0 0 -55px;border-radius:50%;background:rgba(255,255,255,.2);border:2px solid rgba(255,255,255,.5);display:none;z-index:4;pointer-events:none}
+#knob{position:absolute;left:50%;top:50%;width:48px;height:48px;margin:-24px;border-radius:50%;background:rgba(255,255,255,.85)}
+#act{position:fixed;right:20px;bottom:max(28px,env(safe-area-inset-bottom));width:74px;height:74px;border-radius:50%;background:var(--velvet);color:#fff;font-size:28px;z-index:6;box-shadow:0 8px 20px rgba(0,0,0,.35)}
+.talking #act{display:none}
+@media(max-width:600px){#mini{width:104px;height:104px}.quests{font-size:12.5px;padding:8px 11px}.dialog p{font-size:15.5px}}
+</style>
+</head>
+<body>
+<div id="loading">Generating your world…</div>
+<div id="game"></div>
+
+<div class="hud quests"><h3><span>Missions</span><span id="timer">0:00</span></h3><ul id="qlist"></ul></div>
+<div class="hud tr">
+  <div class="row"><a class="icon-btn" href="./" aria-label="Back to home">⌂</a><button class="icon-btn" id="share" aria-label="Copy link to this world">🔗</button><button class="icon-btn" id="gear" aria-label="Open settings">⚙</button></div>
+  <canvas id="mini" width="280" height="280" aria-label="Mini map"></canvas>
+</div>
+<div class="hud prompt" id="prompt"></div>
+<div class="hud dialog" id="dialog" role="dialog" aria-live="polite"><div class="who" id="who">Jack</div><p id="line"></p><div class="foot"><span id="dbtn"></span><span class="next" id="nexthint">▶ next</span></div></div>
+
+<div class="touch"><div id="pad"></div><div id="stick"><div id="knob"></div></div><button id="act" aria-label="Talk / interact">💬</button></div>
+
+<div class="overlay" id="intro">
+  <div class="panel">
+    <div class="seed" id="seedtxt"></div>
+    <h1>Jack's <em>World</em></h1>
+    <p id="introtxt">A tiny world made of my projects, skills and hobbies. 5–10 minutes. No two visitors get the same map.</p>
+    <div class="keys"><div><kbd>WASD</kbd> / <kbd>↑↓←→</kbd> walk</div><div><kbd>Shift</kbd> run</div><div><kbd>E</kbd> / <kbd>Space</kbd> talk &amp; next</div><div><kbd>Esc</kbd> close</div></div>
+    <p class="touch" style="margin:14px 0">Drag on the left to walk · tap 💬 to talk</p>
+    <div class="actions"><button class="btn primary" id="start">▶ Start exploring</button><a class="btn" href="portfolio.html">Skip to portfolio</a></div>
+  </div>
+</div>
+<div class="overlay" id="end" hidden><div class="panel" id="endpanel"></div></div>
+<dialog id="card" aria-labelledby="card-title"><button class="dlg-close" id="card-x" aria-label="Close">✕</button><div id="card-in"></div></dialog>
+
+<script src="data/content.js"></script>
+<script src="assets/js/common.js"></script>
+<script type="module" src="assets/js/world.js"></script>
+</body>
+</html>

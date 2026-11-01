@@ -28,8 +28,8 @@
         <span class="num">01</span><span><b>Just the Resume</b><small>For busy recruiters. No hair physics.</small></span><span class="time">~1 min</span></a>
       <a class="door" href="portfolio.html" data-sfx="click">
         <span class="num">02</span><span><b>Classic Portfolio</b><small>Projects, skills, hobbies — the scrollable kind.</small></span><span class="time">~3 min</span></a>
-      <button class="door door-world" id="world">
-        <span class="num">03</span><span><b>Enter Jack's World <span class="badge">Building</span></b><small>Play as me in a world that's different every visit.</small></span><span class="time">5–10 min</span></button>
+      <a class="door door-world" id="world" href="world.html" data-sfx="open">
+        <span class="num">03</span><span><b>Enter Jack's World <span class="badge">Beta</span></b><small>Play as me in a world that's different every visit.</small></span><span class="time">5–10 min</span></a>
     </nav>
   </section>
   <section class="stage">
@@ -87,7 +87,6 @@
   }).catch(err => console.warn("3D Jack unavailable, using 2D", err));
 
   addEventListener("jack:say", e => say(e.detail.length > 140 ? e.detail.slice(0, 137) + "…" : e.detail));
-  $("#world").addEventListener("click", () => { A.sfx("deny"); say(pick(C.lines.world)); toast("The World is under construction — the portfolio is open meanwhile!"); });
 
   // Singleton easter egg: notice when another tab of this site is open
   try {

@@ -125,9 +125,11 @@ function build(W, L) {
 
   // body
   const body = P.body = new THREE.Group(); g.add(body);
-  [-1, 1].forEach(s => {
-    body.add(mesh(G.cap(.2, .32), pants, [s * .25, -2.52, 0], 0, 0, .03));
-    body.add(mesh(G.sph(.25), shoe, [s * .27, -2.95, .1], 0, [1, .62, 1.45], .03));
+  P.legs = [-1, 1].map(s => { // leg pivots at the hip so the world can animate walking
+    const l = new THREE.Group(); l.position.set(s * .25, -2.2, 0);
+    l.add(mesh(G.cap(.2, .32), pants, [0, -.32, 0], 0, 0, .03));
+    l.add(mesh(G.sph(.25), shoe, [s * .02, -.75, .1], 0, [1, .62, 1.45], .03));
+    body.add(l); return l;
   });
   body.add(mesh(G.cap(.58, .45), topMat, [0, -1.65, 0], 0, 0, .035));
   TOP[top.style]?.(body, top);
@@ -195,6 +197,7 @@ function build(W, L) {
   return { g, P };
 }
 
+export { build as buildJack, THREE };
 export function lookName(W, L) {
   const w = [find(W.hats, L.hat).word, find(W.glasses, L.glasses).word, find(W.neck, L.neck).word].filter(Boolean);
   return [...w.slice(0, 2), find(W.tops, L.top).name].join(" ");

@@ -51,6 +51,36 @@ window.CONTENT = {
     ]
   },
 
+  /* Open world ("Enter Jack's World"). Every visitor gets a different procedurally generated map. */
+  world: {
+    intro: [
+      "Welcome to my world! It's generated just for you — nobody else will ever walk this exact map.",
+      "Missions are top-left. Talk to every place, squash some bugs, and by the end you'll know me better than my compiler does."
+    ],
+    home: [
+      "This is Singleton Games HQ. Population: one instance. Rent: also one instance.",
+      "My projects are scattered around — just follow the sandy paths. The map in the corner helps too."
+    ],
+    quips: {
+      "sector404": "Behold Sector404 — the only game where you're a slime with admin rights.",
+      "wasteland-chorus": "Wasteland Chorus! The apocalypse, but the survivors actually want to talk to you.",
+      "circuit-smasher": "Circuit Smasher. Zombies + powerlines = shockingly good gameplay.",
+      "morphrush": "MorphRush: change your shape or eat the wall. Life lessons, really.",
+      "reverse": "REVERSE — built solo in 72 hours. I rewound history. Sleep schedule not included.",
+      "retro-arcade": "The Back-to-Back Arcade: two screens, two players, and your actual face in the game."
+    },
+    bugs: [
+      "Squashed a NullReferenceException!",
+      "That bug had been living in my physics code rent-free.",
+      "Off-by-one error eliminated. Or was it two?",
+      "A wild race condition appeared… and lost.",
+      "That one only ever showed up on Fridays.",
+      "Bug squashed. It's not a feature anymore."
+    ],
+    mailboxLocked: "The Post Office opens once you've seen all my projects. No skipping to the credits!",
+    mailbox: ["You made it! You've seen my games, my skills and my questionable hobbies.", "Here's my contact card. Use it wisely — or just say hi."]
+  },
+
   /* Jack's lines. Funny is mandatory. */
   lines: {
     greet: [

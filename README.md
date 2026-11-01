@@ -21,6 +21,13 @@ The management portal (coming later) will edit this same file for you.
 
 Every edit you commit goes live automatically.
 
+## Jack's World (open world, beta)
+- `world.html` + `assets/js/world.js`: top-down 3D world, procedurally generated per visitor (`?seed=` in the URL = shareable map).
+- Zones: Singleton HQ, one landmark per project, Skill Tower, Hobby Park, Memory Lane, Post Office (finale). Bugs to squash as a side quest.
+- Text lives in `content.js → world` (intro, per-project quips, bug jokes). Projects/skills/hobbies are pulled from the same file automatically.
+- Controls: WASD/arrows + Shift, E/Space to talk; on phones, drag to walk and tap 💬.
+- If the AI worker is set up, each project gets a fresh AI-written intro line.
+
 ## Ask Jack chat
 - Floating **Ask Jack** button on the landing and portfolio pages.
 - Works right away with built-in answers (FAQs in `content.js → chat.faqs`, plus answers generated from your projects, skills and hobbies).

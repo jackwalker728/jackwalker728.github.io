@@ -23,8 +23,12 @@ Every edit you commit goes live automatically.
 
 ## Jack's World (open world, beta)
 - v2: ~140-unit-radius map with asphalt roads, lamp posts (glow at night), day/night cycle, ponds, forests.
-- Ride bikes and drive cars (E/F to get in, WASD/joystick to drive, Shift boost, H honk); ramps on roads for jumps.
-- NPCs with funny lines + hints, dogs to pet, cows that always win, birds, filter-coffee speed boost, signposts, football pitch with a goal, 60 tokens.
+- Ride bikes and drive cars (E/F to get in, WASD/joystick to drive, pull back to brake/reverse, Space to drift, Shift boost, H honk). Momentum + tyre-grip handling, the bike leans into turns; ramps for jumps.
+- Emotes (keys 1–6 or the emote bar): wave, laugh, love, thumbs up, dance, huh. Other Jacks in the same world see them; nearby NPCs wave back.
+- Big, calm world: a few groves instead of a forest, hills on the horizon. No walls: walk or drive past the edge and you're whisked back to HQ.
+- Natural sound: soft effects, footsteps that change on grass/road/stone, an engine that revs with speed, tyre squeal when drifting, wind, birds by day and crickets at night. No crash sounds.
+- Graphics: drifting cloud shadows, soft bloom on lamps/windows/holograms at night (desktop), vignette, mouse-wheel zoom.
+- NPCs with funny lines + hints, dogs to pet (pet one and it follows you, even into your car; press E again to make it sit and stay), cows that always win, birds, filter-coffee speed boost, signposts, football pitch with a goal, 60 tokens.
 - Side quests: tokens, bugs, ride bike, drive car, pet dogs, score a goal, airtime, coffee.
 - `world.html` + `assets/js/world.js`: top-down 3D world, procedurally generated per visitor (`?seed=` in the URL = shareable map).
 - Zones: Singleton HQ, one landmark per project, Skill Tower, Hobby Park, Memory Lane, Post Office (finale). Bugs to squash as a side quest.

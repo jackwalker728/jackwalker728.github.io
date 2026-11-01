@@ -16,51 +16,67 @@
 
   /* ---------- Audio: tiny WebAudio chiptune, no files ---------- */
   const A = (() => {
-    let ctx, master, mus, fx, timer = null, step = 0, nextT = 0;
+    let ctx, master, mus, fx, soft, mlp, timer = null, step = 0, nextT = 0;
     const mf = m => 440 * Math.pow(2, (m - 69) / 12);
     function init() {
       if (ctx) return;
       const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
       ctx = new AC(); master = ctx.createGain(); mus = ctx.createGain(); fx = ctx.createGain();
+      soft = ctx.createBiquadFilter(); soft.type = "lowpass"; soft.frequency.value = 1600; soft.connect(fx);
+      mlp = ctx.createBiquadFilter(); mlp.type = "lowpass"; mlp.frequency.value = 2600; mlp.connect(mus);
       mus.connect(master); fx.connect(master); master.connect(ctx.destination); apply();
     }
     function apply() {
       if (!ctx) return;
       if (ctx.state === "suspended") ctx.resume();
-      master.gain.value = S.master; mus.gain.value = S.music ? S.musicVol * 0.35 : 0; fx.gain.value = S.sfx ? S.sfxVol * 0.5 : 0;
+      master.gain.value = S.master; mus.gain.value = S.music ? S.musicVol * 0.35 : 0; fx.gain.value = S.sfx ? S.sfxVol * 0.85 : 0;
       S.music ? start() : stop();
     }
-    function tone(f, t, d, type, g, dest) {
+    // soft attack + natural decay; optional pitch glide (f2) and a warm low-pass route (lp)
+    function tone(f, t, d, type, g, dest, f2) {
       const o = ctx.createOscillator(), a = ctx.createGain();
-      o.type = type; o.frequency.setValueAtTime(f, t);
-      a.gain.setValueAtTime(g, t); a.gain.exponentialRampToValueAtTime(0.001, t + d);
-      o.connect(a); a.connect(dest); o.start(t); o.stop(t + d + 0.03);
+      o.type = type; o.frequency.setValueAtTime(f, t); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + d);
+      a.gain.setValueAtTime(0.0001, t); a.gain.linearRampToValueAtTime(g, t + Math.min(.015, d * .3)); a.gain.exponentialRampToValueAtTime(0.0005, t + d);
+      o.connect(a); a.connect(dest); o.start(t); o.stop(t + d + 0.05);
     }
+    let nb = null;
+    function noise(t, d, fq, q, g, dest, type = "bandpass", f2) {
+      if (!nb) { nb = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate); const c = nb.getChannelData(0); for (let i = 0; i < c.length; i++) c[i] = Math.random() * 2 - 1; }
+      const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), a = ctx.createGain(); s.buffer = nb; s.loop = true;
+      f.type = type; f.frequency.setValueAtTime(fq, t); if (f2) f.frequency.exponentialRampToValueAtTime(f2, t + d); f.Q.value = q;
+      a.gain.setValueAtTime(0.0001, t); a.gain.linearRampToValueAtTime(g, t + Math.min(.02, d * .3)); a.gain.exponentialRampToValueAtTime(0.0005, t + d);
+      s.connect(f); f.connect(a); a.connect(dest); s.start(t, Math.random() * .5); s.stop(t + d + .05);
+    }
+    // [freq, offset, dur, wave, gain, glideTo, lowpass]  or  ["n", offset, dur, filterFreq, Q, gain, filterType, sweepTo]
     const SFX = {
-      click: [[660, 0, .06, "square"], [990, .05, .08, "square"]],
-      hover: [[520, 0, .035, "triangle"]],
-      open:  [[392, 0, .07, "square"], [523, .06, .07, "square"], [784, .12, .12, "square"]],
-      boing: [[300, 0, .1, "square"], [620, .06, .1, "square"], [450, .12, .12, "triangle"]],
-      deny:  [[220, 0, .12, "sawtooth"], [150, .1, .2, "sawtooth"]],
-      coin:  [[880, 0, .05, "square"], [1320, .05, .09, "square"]],
-      honk:  [[392, 0, .22, "sawtooth"], [311, 0, .22, "sawtooth"]],
-      bark:  [[520, 0, .06, "square"], [360, .06, .08, "square"]],
-      moo:   [[150, 0, .55, "sawtooth"], [120, .25, .4, "triangle"]],
-      jump:  [[300, 0, .08, "triangle"], [620, .06, .1, "triangle"]],
-      goal:  [[523, 0, .1, "square"], [659, .1, .1, "square"], [784, .2, .1, "square"], [1047, .3, .3, "square"]]
+      click: [[1400, 0, .05, "sine", .16, 950]],
+      hover: [[900, 0, .06, "sine", .07]],
+      open:  [[523, 0, .2, "sine", .16], [784, .07, .24, "sine", .12], [1047, .14, .34, "sine", .08]],
+      boing: [[420, 0, .14, "sine", .14, 260]],
+      pop:   [[520, 0, .09, "sine", .2, 1100], ["n", 0, .03, 2600, 1, .05]],
+      deny:  [[320, 0, .14, "triangle", .16, 230], [250, .12, .2, "triangle", .14, 180]],
+      coin:  [[1319, 0, .14, "sine", .15], [1976, .06, .32, "sine", .11], [3951, .06, .12, "sine", .02]],
+      honk:  [[349, 0, .34, "sawtooth", .12, 0, 1], [440, 0, .34, "sawtooth", .1, 0, 1]],
+      bark:  [["n", 0, .09, 900, 2.5, .3, "bandpass", 450], [560, 0, .08, "triangle", .12, 330], ["n", .17, .08, 950, 2.5, .24, "bandpass", 480], [600, .17, .07, "triangle", .1, 360]],
+      moo:   [[150, 0, .8, "sawtooth", .12, 118, 1], [75, 0, .8, "sine", .12, 62]],
+      jump:  [[240, 0, .16, "sine", .14, 520], ["n", 0, .14, 500, .8, .05, "bandpass", 1600]],
+      kick:  [["n", 0, .06, 240, 1, .35, "lowpass"], [150, 0, .09, "sine", .26, 70]],
+      whoosh: [["n", 0, .55, 260, .9, .2, "bandpass", 2600], [180, 0, .5, "sine", .07, 560]],
+      goal:  [["n", 0, 1.6, 1100, .5, .12, "bandpass", 800], [523, 0, .35, "sine", .12], [659, .12, .35, "sine", .12], [784, .24, .35, "sine", .12], [1047, .36, .7, "sine", .1]]
     };
     function sfx(n) {
       init(); if (!ctx || !S.sfx) return; if (ctx.state === "suspended") ctx.resume();
-      const t = ctx.currentTime; (SFX[n] || SFX.click).forEach(([f, o, d, ty]) => tone(f, t + o, d, ty, .3, fx));
+      const t = ctx.currentTime;
+      (SFX[n] || SFX.click).forEach(e => e[0] === "n" ? noise(t + e[1], e[2], e[3], e[4], e[5], fx, e[6], e[7]) : tone(e[0], t + e[1], e[2], e[3], e[4], e[6] ? soft : fx, e[5] || 0));
     }
     const E = 60 / 112 / 2, prog = [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]];
     const lead = [69,72,76,72, 74,72,69,67, 65,69,72,69, 67,65,64,62, 64,67,72,67, 64,67,71,74, 72,0,71,0, 67,0,0,0];
     function sched() {
       while (nextT < ctx.currentTime + 0.15) {
         const ch = prog[Math.floor(step / 8) % 4];
-        if (step % 2 === 0) tone(mf(ch[0] - 12), nextT, E * 1.6, "triangle", .35, mus);
-        tone(mf(ch[step % 3] + 12), nextT, E * .6, "square", .05, mus);
-        const l = lead[step % 32]; if (l && Math.floor(step / 32) % 2) tone(mf(l), nextT, E * .9, "square", .08, mus);
+        if (step % 2 === 0) tone(mf(ch[0] - 12), nextT, E * 1.8, "sine", .4, mlp);
+        tone(mf(ch[step % 3] + 12), nextT, E * .9, "triangle", .07, mlp);
+        const l = lead[step % 32]; if (l && Math.floor(step / 32) % 2) tone(mf(l), nextT, E * 1.2, "triangle", .1, mlp);
         step++; nextT += E;
       }
     }
@@ -70,7 +86,7 @@
     const unlock = () => { init(); apply(); removeEventListener("pointerdown", unlock); removeEventListener("keydown", unlock); };
     addEventListener("pointerdown", unlock); addEventListener("keydown", unlock);
     document.addEventListener("visibilitychange", () => { if (ctx) document.hidden ? ctx.suspend() : ctx.resume(); });
-    return { init, apply, sfx };
+    return { init, apply, sfx, get ctx() { return ctx; }, get bus() { return fx; } };
   })();
 
   /* ---------- Cartoon Jack (SVG, scales to any size) ---------- */

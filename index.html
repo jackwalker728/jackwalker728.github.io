@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Jack — Game Developer</title>
+<meta name="description" content="Jack, game developer from Bangalore. Resume, portfolio, and soon: an entire world made of me.">
+<meta name="theme-color" content="#0e0b12">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕹️</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body class="landing">
+<div class="bg" aria-hidden="true"></div>
+<header class="top">
+  <a class="brand" href="./">JACK<span>.dev</span></a>
+  <button class="icon-btn" id="gear" aria-label="Open settings">⚙</button>
+</header>
+
+<main class="hero">
+  <section>
+    <p class="kicker"><span class="dot"></span><span id="role"></span></p>
+    <h1 class="big">Hi, I'm <em id="nm">Jack</em>.</h1>
+    <p class="tagline" id="tagline"></p>
+    <nav class="doors" aria-label="Choose how to explore">
+      <a class="door" href="resume.html" data-sfx="click" style="--c:var(--teal)">
+        <span class="num">01</span><span><b>Just the Resume</b><small>For busy recruiters. No hair physics.</small></span><span class="time">~1 min</span></a>
+      <a class="door" href="portfolio.html" data-sfx="click">
+        <span class="num">02</span><span><b>Classic Portfolio</b><small>Projects, skills, hobbies — the scrollable kind.</small></span><span class="time">~3 min</span></a>
+      <button class="door door-world" id="world">
+        <span class="num">03</span><span><b>Enter Jack's World <span class="badge">Building</span></b><small>Play as me in a world that's different every visit.</small></span><span class="time">5–10 min</span></button>
+    </nav>
+  </section>
+  <section class="stage">
+    <div class="bubble" id="bubble" aria-live="polite"></div>
+    <div class="jack-wrap" id="jack" role="button" tabindex="0" aria-label="Poke Jack to change his outfit"></div>
+    <p class="hint" id="oname"></p>
+    <div class="wd-btns">
+      <button class="chip" id="shuffle">🎲 Shuffle</button>
+      <button class="chip" id="wd-toggle" hidden aria-expanded="false">👕 Wardrobe</button>
+    </div>
+    <div class="wardrobe" id="wardrobe" hidden></div>
+  </section>
+</main>
+
+<script src="data/content.js"></script>
+<script src="assets/js/common.js"></script>
+<script src="assets/js/chat.js" defer></script>
+<script>
+(() => {
+  const { C, A, $, pick, jackSVG, toast } = Jack, P = C.profile;
+  $("#role").textContent = `${P.title} · ${P.location}`;
+  $("#nm").textContent = P.name;
+  $("#tagline").textContent = P.tagline;
+  document.title = `${P.name} — ${P.title}`;
+
+  const stage = $("#jack"), bubble = $("#bubble");
+  let oi = Math.floor(Math.random() * C.outfits.length);
+  const draw = () => { const f = C.outfits[oi]; stage.innerHTML = jackSVG(f); $("#oname").textContent = `Outfit: ${f.name} · tap me`; };
+  const say = t => { bubble.textContent = t; bubble.classList.remove("pop"); void bubble.offsetWidth; bubble.classList.add("pop"); };
+  draw(); say(pick(C.lines.greet));
+
+  // 2D fallback shows instantly; the 3D Jack replaces it once loaded
+  let j3d = null, lookName = null;
+  const poke = () => {
+    if (j3d) return j3d.poke();
+    oi = (oi + 1) % C.outfits.length; draw(); stage.firstElementChild.classList.add("poked"); A.sfx("boing"); say(pick(C.lines.poke));
+  };
+  stage.addEventListener("click", e => { if (!j3d) poke(); });
+  stage.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); poke(); } });
+  $("#shuffle").addEventListener("click", poke);
+
+  const W = C.wardrobe, wd = $("#wardrobe");
+  const SLOTS = [["top", "Top", W.tops], ["hat", "Hat", W.hats], ["glasses", "Glasses", W.glasses], ["neck", "Neck", W.neck], ["hand", "Holding", W.hand], ["pants", "Pants", W.pants], ["shoes", "Shoes", W.shoes]];
+  const label = l => { $("#oname").textContent = `${lookName(W, l)} · tap me`; };
+  const syncChips = () => { const l = j3d.look; wd.querySelectorAll(".chip").forEach(c => c.classList.toggle("on", l[c.dataset.slot] === c.dataset.id)); };
+  import("./assets/js/jack3d.js").then(m => {
+    lookName = m.lookName;
+    j3d = m.mountJack3D(stage, { wardrobe: W, look: m.randomLook(W), onPoke: l => { A.sfx("boing"); say(pick(C.lines.poke)); label(l); setTimeout(syncChips, 400); } });
+    stage.classList.add("is-3d"); label(j3d.look);
+    wd.innerHTML = SLOTS.map(([k, t, list]) => `<div class="wd-row"><span>${t}</span><div class="wd-chips">${list.map(i => `<button class="chip" data-slot="${k}" data-id="${i.id}">${Jack.esc(i.name)}</button>`).join("")}</div></div>`).join("");
+    syncChips();
+    $("#wd-toggle").hidden = false;
+    $("#wd-toggle").onclick = () => { const open = wd.hidden; wd.hidden = !open; $("#wd-toggle").setAttribute("aria-expanded", open); A.sfx(open ? "open" : "click"); };
+    wd.addEventListener("click", e => { const c = e.target.closest(".chip"); if (!c) return; j3d.setLook({ [c.dataset.slot]: c.dataset.id }); A.sfx("click"); label(j3d.look); syncChips(); });
+  }).catch(err => console.warn("3D Jack unavailable, using 2D", err));
+
+  addEventListener("jack:say", e => say(e.detail.length > 140 ? e.detail.slice(0, 137) + "…" : e.detail));
+  $("#world").addEventListener("click", () => { A.sfx("deny"); say(pick(C.lines.world)); toast("The World is under construction — the portfolio is open meanwhile!"); });
+
+  // Singleton easter egg: notice when another tab of this site is open
+  try {
+    const bc = new BroadcastChannel("jack-singleton");
+    bc.onmessage = e => { if (e.data === "hello") bc.postMessage("here"); say(pick(C.lines.twin)); };
+    bc.postMessage("hello");
+  } catch (e) {}
+})();
+</script>
+</body>
+</html>

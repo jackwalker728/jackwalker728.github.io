@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Portfolio — Jack</title>
+<meta name="description" content="Projects, skills and hobbies of Jack, game developer.">
+<meta name="theme-color" content="#0e0b12">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕹️</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<div class="bg" aria-hidden="true"></div>
+<header class="top">
+  <a class="brand" href="./" aria-label="Back to home">JACK<span>.dev</span></a>
+  <nav aria-label="Sections">
+    <a href="#about">About</a><a href="#projects">Projects</a><a href="#skills">Skills</a><a href="#hobbies">Hobbies</a><a href="#journey">Journey</a><a href="#contact">Contact</a>
+  </nav>
+  <button class="icon-btn" id="gear" aria-label="Open settings">⚙</button>
+</header>
+
+<main class="wrap">
+  <section class="p-hero">
+    <div class="mini-jack" id="mini" role="button" tabindex="0" aria-label="Poke Jack"></div>
+    <div>
+      <span class="pill"><span class="dot"></span><span id="status"></span></span>
+      <h1>I'm <em id="nm"></em>,<br><span id="title"></span>.</h1>
+      <p class="lead" id="tagline"></p>
+      <div class="actions">
+        <a class="btn primary" href="#projects">See projects ↓</a>
+        <a class="btn" href="resume.html">Resume</a>
+        <a class="btn" href="#contact">Say hi</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="about">
+    <div class="sec-head"><span class="idx">01</span><h2>About me</h2></div>
+    <div class="about-grid"><div id="about-text"></div><div class="facts" id="facts"></div></div>
+  </section>
+
+  <section class="sec" id="projects">
+    <div class="sec-head"><span class="idx">02</span><h2>Projects</h2><p>Tap any card for the full story.</p></div>
+    <div class="chips" id="chips" role="toolbar" aria-label="Filter projects"></div>
+    <div class="grid" id="grid"></div>
+  </section>
+
+  <section class="sec" id="skills">
+    <div class="sec-head"><span class="idx">03</span><h2>Skills</h2></div>
+    <div class="box-grid" id="skill-grid"></div>
+  </section>
+
+  <section class="sec" id="hobbies">
+    <div class="sec-head"><span class="idx">04</span><h2>When I'm not compiling</h2></div>
+    <div class="box-grid" id="hobby-grid"></div>
+  </section>
+
+  <section class="sec" id="journey">
+    <div class="sec-head"><span class="idx">05</span><h2>Journey</h2></div>
+    <ol class="timeline" id="timeline"></ol>
+  </section>
+
+  <section class="sec" id="contact">
+    <div class="contact-box">
+      <h2>Let's make something weird.</h2>
+      <p class="lead" style="margin:12px auto 0">Roles, jams, collabs, or just to argue about game feel.</p>
+      <div class="actions" id="contact-actions"></div>
+    </div>
+  </section>
+  <p class="foot">Hand-made, no frameworks · © <span class="yr"></span> <span id="foot-name"></span></p>
+</main>
+
+<dialog id="dlg" aria-labelledby="dlg-title"><button class="dlg-close" id="dlg-x" aria-label="Close">✕</button><div id="dlg-in"></div></dialog>
+
+<script src="data/content.js"></script>
+<script src="assets/js/common.js"></script>
+<script src="assets/js/chat.js" defer></script>
+<script>
+(() => {
+  const { C, A, $, $$, esc, pick, outfitFor, jackSVG, toast } = Jack, P = C.profile;
+  const T = (id, v) => { $(id).textContent = v; };
+  T("#nm", P.name); T("#title", P.title.toLowerCase()); T("#tagline", P.tagline); T("#status", P.status); T("#foot-name", P.fullName || P.name);
+
+  // mini Jack — random outfit every visit
+  const mini = $("#mini"); let f = outfitFor(P.defaultOutfit);
+  const drawMini = () => { mini.innerHTML = jackSVG(f); };
+  drawMini();
+  const poke = () => { f = C.outfits[(C.outfits.indexOf(f) + 1) % C.outfits.length]; drawMini(); mini.firstElementChild.classList.add("poked"); A.sfx("boing"); toast(pick(C.lines.poke)); };
+  mini.onclick = poke; mini.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); poke(); } };
+
+  // about
+  $("#about-text").innerHTML = P.about.map(p => `<p>${esc(p)}</p>`).join("");
+  $("#facts").innerHTML = [["Based in", P.location], ["Role", P.title], ["Projects shipped & brewing", C.projects.length], ["Engines", "Unity · Unreal · Web"]]
+    .map(([k, v]) => `<div class="fact"><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join("");
+
+  // projects
+  const cats = ["All", ...new Set(C.projects.map(p => p.category))];
+  $("#chips").innerHTML = cats.map((c, i) => `<button class="chip${i ? "" : " on"}" data-cat="${esc(c)}" aria-pressed="${!i}">${esc(c)}</button>`).join("");
+  const cover = p => `<div class="cover" style="--c:${esc(p.color)}">${p.image ? `<img src="${esc(p.image)}" alt="" loading="lazy" decoding="async">` : `<span class="glyph" aria-hidden="true">${esc(p.glyph)}</span>`}<span class="status">${esc(p.status)}</span></div>`;
+  $("#grid").innerHTML = C.projects.map(p => `
+    <button class="card" data-id="${esc(p.id)}" data-cat="${esc(p.category)}" style="--c:${esc(p.color)}">
+      ${cover(p)}
+      <div class="card-body"><div class="meta">${esc(p.year)} · ${esc(p.engine)}</div><h3>${esc(p.title)}</h3><p>${esc(p.summary)}</p>
+      <div class="tags">${p.tags.map(t => `<span class="tag">${esc(t)}</span>`).join("")}</div></div>
+    </button>`).join("");
+  $("#chips").addEventListener("click", e => {
+    const b = e.target.closest(".chip"); if (!b) return; A.sfx("click");
+    $$(".chip").forEach(c => { c.classList.toggle("on", c === b); c.setAttribute("aria-pressed", c === b); });
+    $$(".card").forEach(c => c.hidden = b.dataset.cat !== "All" && c.dataset.cat !== b.dataset.cat);
+  });
+
+  const dlg = $("#dlg");
+  $("#grid").addEventListener("click", e => {
+    const c = e.target.closest(".card"); if (!c) return;
+    const p = C.projects.find(x => x.id === c.dataset.id);
+    $("#dlg-in").innerHTML = `${cover(p)}<div class="dlg-body"><div class="meta">${esc(p.year)} · ${esc(p.engine)} · ${esc(p.role)}</div>
+      <h2 id="dlg-title">${esc(p.title)}</h2><p>${esc(p.details)}</p>
+      ${p.highlights?.length ? `<h4>Highlights</h4><ul>${p.highlights.map(h => `<li>${esc(h)}</li>`).join("")}</ul>` : ""}
+      <div class="tags" style="margin-top:14px">${p.tags.map(t => `<span class="tag">${esc(t)}</span>`).join("")}</div>
+      ${p.links?.length ? `<div class="actions">${p.links.map((l, i) => `<a class="btn${i ? "" : " primary"}" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)} ↗</a>`).join("")}</div>` : ""}</div>`;
+    A.sfx("open"); dlg.showModal(); dlg.scrollTop = 0;
+  });
+  $("#dlg-x").onclick = () => dlg.close();
+  dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); });
+
+  // skills / hobbies / journey
+  $("#skill-grid").innerHTML = C.skills.map(s => `<div class="box"><h3>${esc(s.group)}</h3><div class="tags">${s.items.map(i => `<span class="tag">${esc(i)}</span>`).join("")}</div></div>`).join("");
+  $("#hobby-grid").innerHTML = C.hobbies.map(h => `<div class="box"><div class="ico" aria-hidden="true">${esc(h.icon)}</div><h3>${esc(h.title)}</h3><p>${esc(h.text)}</p></div>`).join("");
+  $("#timeline").innerHTML = C.journey.map(j => `<li><div class="when">${esc(j.when)}</div><h3>${esc(j.title)}</h3><div class="org">${esc(j.org)}</div><p>${esc(j.text)}</p></li>`).join("");
+
+  // contact
+  $("#contact-actions").innerHTML = `<a class="btn primary" href="mailto:${esc(P.email)}">✉ Email me</a>` +
+    P.socials.map(s => `<a class="btn" href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.label)} ↗</a>`).join("") +
+    `<a class="btn" href="resume.html">Resume</a>`;
+
+  // reveal on scroll (cheap, one observer)
+  if ("IntersectionObserver" in window) {
+    const io = new IntersectionObserver(es => es.forEach(en => { if (en.isIntersecting) { en.target.classList.add("in"); io.unobserve(en.target); } }), { rootMargin: "0px 0px -8% 0px" });
+    $$(".sec .sec-head, .card, .box, .timeline li, .contact-box, .about-grid").forEach(el => { el.classList.add("rv"); io.observe(el); });
+  }
+})();
+</script>
+</body>
+</html>

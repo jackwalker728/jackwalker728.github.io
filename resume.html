@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Resume — Jack</title>
+<meta name="theme-color" content="#ece7df">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕹️</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#1d1a22;--mut:#6a6272;--line:#e3ddd4;--acc:#b52f46;--fd:"Bricolage Grotesque",system-ui,sans-serif;color-scheme:light}
+*{box-sizing:border-box;margin:0}
+body{background:#ece7df;color:var(--ink);font:15px/1.55 "Inter",system-ui,sans-serif}
+a{color:inherit}
+.bar{max-width:860px;margin:0 auto;padding:16px;display:flex;gap:10px;flex-wrap:wrap}
+.bar a,.bar button{font:600 14px "Inter",sans-serif;padding:9px 14px;border-radius:10px;border:1px solid #d3ccc1;background:#fff;color:var(--ink);text-decoration:none;cursor:pointer}
+.bar .pri{background:var(--ink);color:#fff;border-color:var(--ink);margin-left:auto}
+.sheet{max-width:860px;margin:0 auto 40px;background:#fff;padding:clamp(22px,5vw,56px);border-radius:10px;box-shadow:0 20px 60px rgba(40,20,30,.1)}
+header{display:flex;gap:20px;align-items:center;border-bottom:2px solid var(--ink);padding-bottom:18px;margin-bottom:6px}
+header .av{width:78px;flex:none}.av svg{width:100%;height:auto;display:block}
+h1{font:800 clamp(30px,5vw,42px)/1 var(--fd);letter-spacing:-.03em}
+.sub{color:var(--acc);font-weight:600;margin-top:4px}
+.contact{color:var(--mut);font-size:13.5px;margin-top:6px;display:flex;gap:4px 14px;flex-wrap:wrap}
+h2{font:700 13px/1 "Inter",sans-serif;text-transform:uppercase;letter-spacing:.14em;color:var(--acc);margin:26px 0 12px}
+.item{display:grid;grid-template-columns:110px 1fr;gap:4px 16px;padding:8px 0;border-bottom:1px solid var(--line)}
+.item:last-child{border:0}
+.when{color:var(--mut);font-size:13px;padding-top:2px}
+.item b{font-weight:600}
+.item .org{color:var(--mut)}
+.item p{color:#3c3642;font-size:14px}
+.tags{color:var(--mut);font-size:12.5px;margin-top:2px}
+.skills{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px 24px}
+.skills b{display:block;font-size:13px}
+.skills span{color:#3c3642;font-size:14px}
+@media(max-width:560px){.item{grid-template-columns:1fr}header .av{width:60px}}
+@media print{body{background:#fff}.bar{display:none}.sheet{box-shadow:none;margin:0;max-width:none;padding:0}@page{margin:14mm}.item{break-inside:avoid}}
+</style>
+</head>
+<body>
+<div class="bar">
+  <a href="./">← Home</a><a href="portfolio.html">Full portfolio</a>
+  <span id="pdf"></span>
+  <button class="pri" onclick="print()">Print / Save PDF</button>
+</div>
+<main class="sheet">
+  <header><div class="av" id="av"></div><div><h1 id="name"></h1><div class="sub" id="sub"></div><div class="contact" id="contact"></div></div></header>
+  <h2>Summary</h2><p id="summary"></p>
+  <h2>Experience</h2><div id="exp"></div>
+  <h2>Projects</h2><div id="proj"></div>
+  <h2>Skills</h2><div class="skills" id="skills"></div>
+</main>
+<script src="data/content.js"></script>
+<script src="assets/js/common.js"></script>
+<script>
+(() => {
+  const { C, $, esc, outfitFor, jackSVG } = Jack, P = C.profile;
+  document.title = `Resume — ${P.fullName || P.name}`;
+  $("#av").innerHTML = jackSVG(outfitFor("formal"));
+  $("#name").textContent = P.fullName || P.name;
+  $("#sub").textContent = `${P.title} · ${P.location}`;
+  $("#contact").innerHTML = `<a href="mailto:${esc(P.email)}">${esc(P.email)}</a>` + P.socials.map(s => `<a href="${esc(s.url)}">${esc(s.url.replace(/^https?:\/\/(www\.)?/, ""))}</a>`).join("");
+  $("#summary").textContent = P.about.slice(0, 2).join(" ");
+  $("#exp").innerHTML = C.journey.map(j => `<div class="item"><div class="when">${esc(j.when)}</div><div><b>${esc(j.title)}</b> <span class="org">— ${esc(j.org)}</span><p>${esc(j.text)}</p></div></div>`).join("");
+  $("#proj").innerHTML = C.projects.map(p => `<div class="item"><div class="when">${esc(p.year)}</div><div><b>${esc(p.title)}</b> <span class="org">— ${esc(p.engine)} · ${esc(p.role)}</span><p>${esc(p.summary)}</p><div class="tags">${p.tags.map(esc).join(" · ")}</div></div></div>`).join("");
+  $("#skills").innerHTML = C.skills.map(s => `<div><b>${esc(s.group)}</b><span>${s.items.map(esc).join(", ")}</span></div>`).join("");
+  if (P.resumePdf) $("#pdf").innerHTML = `<a href="${esc(P.resumePdf)}" download>Download PDF</a>`;
+})();
+</script>
+</body>
+</html>

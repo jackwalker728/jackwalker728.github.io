@@ -511,11 +511,17 @@ addEventListener("keydown", e => {
   if (e.key.startsWith("Arrow")) e.preventDefault();
 });
 addEventListener("keyup", e => { keys[keyOf(e)] = false; keys[e.key.toLowerCase()] = false; if (e.key === "Meta" || e.key === "Control" || e.key === "Alt") clearInput(); });
-{ // drag anywhere on the world (mouse, or a finger outside the walk stick) to orbit the camera
-  const look = { id: null, x: 0, y: 0 }, cv = renderer.domElement; cv.style.touchAction = "none";
-  cv.addEventListener("pointerdown", e => { if (!started || look.id !== null) return; look.id = e.pointerId; look.x = e.clientX; look.y = e.clientY; cv.setPointerCapture(e.pointerId); });
-  cv.addEventListener("pointermove", e => { if (e.pointerId !== look.id) return; const k = touch ? .009 : .006; camYaw -= (e.clientX - look.x) * k; camPitch = clamp(camPitch + (e.clientY - look.y) * k * .7, .06, 1.25); look.x = e.clientX; look.y = e.clientY; camT = clock; });
-  ["pointerup", "pointercancel", "lostpointercapture"].forEach(ev => cv.addEventListener(ev, e => { if (e.pointerId === look.id) look.id = null; }));
+{ // drag on the world to orbit the camera (mouse anywhere; on phones the right thumb), two fingers pinch to zoom
+  const cv = renderer.domElement, pts = new Map(); let pinch0 = 0, zoom0 = 1; cv.style.touchAction = "none";
+  const spread = () => { const [a, b] = [...pts.values()]; return Math.hypot(a.x - b.x, a.y - b.y) || 1; };
+  cv.addEventListener("pointerdown", e => { if (!started) return; pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); cv.setPointerCapture(e.pointerId); if (pts.size === 2) { pinch0 = spread(); zoom0 = zoom; } });
+  cv.addEventListener("pointermove", e => {
+    const p = pts.get(e.pointerId); if (!p) return;
+    const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY; camT = clock;
+    if (pts.size >= 2) { if (pinch0) zoom = clamp(zoom0 * pinch0 / spread(), .55, 1.8); return; }
+    const k = touch ? .0085 : .006; camYaw -= dx * k; camPitch = clamp(camPitch + dy * k * .7, .06, 1.25);
+  });
+  ["pointerup", "pointercancel", "lostpointercapture"].forEach(ev => cv.addEventListener(ev, e => { pts.delete(e.pointerId); if (pts.size < 2) pinch0 = 0; }));
 }
 addEventListener("wheel", e => { if (!started || e.target.closest?.(".drawer,dialog,.quests")) return; zoom = clamp(zoom * (1 + Math.sign(e.deltaY) * .08), .55, 1.8); }, { passive: true });
 { const pop = $("#emopop"), btn = $("#emobtn"), show = v => { pop.hidden = !v; btn.setAttribute("aria-expanded", v); };

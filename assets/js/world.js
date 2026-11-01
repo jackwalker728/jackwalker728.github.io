@@ -530,7 +530,8 @@ $("#act2").addEventListener("click", () => dialogOpen ? next() : action2());
 const projZones = zones.filter(z => z.kind === "project"), placeZones = zones.filter(z => ["skills", "hobbies", "journey"].includes(z.kind));
 const Q = { hi: false, proj: new Set(), places: new Set(), done: false, tokens: 0, bugs: 0, bike: false, car: false, goal: false, games: new Set(), air: false, coffee: false };
 const TOKEN_GOAL = 30;
-const unlocked = () => Q.proj.size >= projZones.length;
+const PROJ_GOAL = Math.min(6, projZones.length); // 14+ projects is too many to require; any 6 unlock the finale
+const unlocked = () => Q.proj.size >= PROJ_GOAL;
 const sideList = () => [
   [Q.tokens >= TOKEN_GOAL, `Collect ${TOKEN_GOAL} tokens (${Math.min(Q.tokens, TOKEN_GOAL)}/${TOKEN_GOAL})`], [Q.bugs >= bugs.length, `Squash bugs (${Q.bugs}/${bugs.length})`],
   [Q.bike, "Ride a bike"], [Q.car, "Drive a car"],
@@ -539,7 +540,7 @@ let sideOpen = true;
 function renderQuests() {
   const li = (done, txt, locked) => `<li class="${done ? "done" : ""} ${locked ? "locked" : ""}"><span>${done ? "✅" : locked ? "🔒" : "⬜"}</span><span>${txt}</span></li>`;
   const side = sideList(), sd = side.filter(s => s[0]).length;
-  $("#qlist").innerHTML = li(Q.hi, "Say hi at Singleton HQ") + li(unlocked(), `Visit my projects (${Q.proj.size}/${projZones.length})`) +
+  $("#qlist").innerHTML = li(Q.hi, "Say hi at Singleton HQ") + li(unlocked(), `Visit ${PROJ_GOAL} of my ${projZones.length} projects (${Math.min(Q.proj.size, PROJ_GOAL)}/${PROJ_GOAL})`) +
     li(Q.places.size >= placeZones.length, `Skills, hobbies & story (${Q.places.size}/${placeZones.length})`) + li(Q.done, "Reach the Post Office", !unlocked()) +
     `<li class="sidehead" id="sidehead">${sideOpen ? "▾" : "▸"} Side quests ${sd}/${side.length}</li>` + (sideOpen ? side.map(s => li(s[0], s[1])).join("") : "");
   $("#tok").textContent = Q.tokens;
@@ -551,7 +552,7 @@ $("#qlist").addEventListener("click", e => { if (e.target.closest("#sidehead")) 
 /* ---------- dialog ---------- */
 let dialogOpen = false, dq = [], dz = null, typing = null, full = "", talkingNPC = null;
 const lineEl = $("#line");
-function openDialog(lines, zone, who = "Jack") { clearInput(); dq = lines.slice(); dz = zone; dialogOpen = true; $("#who").textContent = who; $("#dialog").classList.add("show"); document.body.classList.add("talking"); next(); }
+function openDialog(lines, zone, who = "Jack") { clearInput(); $("#qbody").hidden = true; $("#qbtn").setAttribute("aria-expanded", false); dq = lines.slice(); dz = zone; dialogOpen = true; $("#who").textContent = who; $("#dialog").classList.add("show"); document.body.classList.add("talking"); next(); }
 function closeDialog() { clearInput(); dialogOpen = false; $("#dialog").classList.remove("show"); document.body.classList.remove("talking"); clearInterval(typing); talkingNPC = null; const z = dz; dz = null; if (z) done(z); }
 function next() {
   if (typing) { clearInterval(typing); typing = null; if (lineEl.textContent !== full) { lineEl.textContent = full; return; } }
@@ -598,7 +599,7 @@ function linesFor(z) {
   if (z.kind === "journey") return ["Memory Lane — the story so far.", ...C.journey.map(j => `${j.when}: ${j.title} (${j.org}). ${j.text}`)];
   if (z.kind === "pitch") return ["The Kickabout Pitch! Kick the ball into the goal. Yes, you can use the car. No, there's no referee."];
   if (z.kind === "mailbox") return unlocked() ? [...(WD.mailbox || []), { t: "Ready for the credits?", btn: { label: "🎉 Finish", act: () => closeDialog() } }]
-    : [`${WD.mailboxLocked || "Come back after visiting all my projects."} (${Q.proj.size}/${projZones.length} projects seen)`];
+    : [`${WD.mailboxLocked || "Come back after visiting all my projects."} (${Math.min(Q.proj.size, PROJ_GOAL)}/${PROJ_GOAL} projects seen)`];
   return ["…"];
 }
 async function talk(z) {

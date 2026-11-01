@@ -65,9 +65,17 @@ window.CONTENT = {
       "sector404": "Behold Sector404 — the only game where you're a slime with admin rights.",
       "wasteland-chorus": "Wasteland Chorus! The apocalypse, but the survivors actually want to talk to you.",
       "circuit-smasher": "Circuit Smasher. Zombies + powerlines = shockingly good gameplay.",
+      "my-gecko": "This is Mochi. He asks better questions than I do, and he's a lizard.",
+      "reverse": "The First Of Us — built solo in 72 hours. I rewound history. Sleep schedule not included.",
+      "retro-arcade": "fowlplay, the back-to-back arcade: two screens, two players, and your actual face in the game.",
       "morphrush": "MorphRush: change your shape or eat the wall. Life lessons, really.",
-      "reverse": "REVERSE — built solo in 72 hours. I rewound history. Sleep schedule not included.",
-      "retro-arcade": "The Back-to-Back Arcade: two screens, two players, and your actual face in the game."
+      "get-up": "Get UP. A game about cleaning your room. My mum says it's the most realistic thing I've ever made.",
+      "egg-celeration": "Egg-celeration. You don't control the egg. You control the ground. The egg has no say in this.",
+      "chroma-crate-clear": "Chroma Crate Clear: seven slots, infinite regret. Every level is solvable. I checked. With maths.",
+      "dealloc": "dealloc(): a game where helping someone literally costs you pieces of yourself. Very healthy. Totally normal jam idea.",
+      "kaatru": "Traditional boat racing, Mandaadi style. Six captains, one boat's worth of balance between them.",
+      "heap": "HEAP: dealloc() got promoted. Same rules, one entire computer to fall apart in.",
+      "magzzele": "magzzele: a puzzle game you literally can't solve alone. Bring a friend. Or a very patient stranger."
     },
     bugs: [
       "Squashed a NullReferenceException!",
@@ -117,7 +125,7 @@ window.CONTENT = {
       [["A", "Have you had the filter coffee?"], ["B", "Three. I can see sounds now."], ["A", "That's not the coffee."], ["B", "That's the frame rate."]],
       [["A", "What's your high score on the arcade?"], ["B", "Classified."], ["A", "So… zero?"], ["B", "It's a soft launch."]]
     ],
-    mailboxLocked: "The Post Office opens once you've seen all my projects. No skipping to the credits!",
+    mailboxLocked: "The Post Office opens once you've seen 6 of my projects. No skipping to the credits!",
     mailbox: ["You made it! You've seen my games, my skills and my questionable hobbies.", "Here's my contact card. Use it wisely — or just say hi."]
   },
 
@@ -214,61 +222,410 @@ window.CONTENT = {
   /* category drives the filter chips. image: optional path/URL (16:9 looks best). */
   projects: [
     {
-      id: "sector404", title: "Sector404", year: "2026", category: "Unity", engine: "Unity · C#",
-      status: "In development", glyph: "🧪", color: "#2aa79f", featured: true,
-      summary: "You play as an AI that solves levels like prompts — scan objects, copy their variables, paste them where they cause trouble.",
-      details: "Every object in a level is hackable: its variables are exposed and can be copied from one object to another. Obstacles have code you can manipulate. The player is a procedurally generated soft-body slime with a scanner beam and a clipboard.",
-      highlights: [
+      "id": "sector404",
+      "title": "Sector404",
+      "year": "2026",
+      "category": "Unity",
+      "engine": "Unity · C# · TextMeshPro",
+      "status": "In development",
+      "glyph": "🧪",
+      "color": "#2aa79f",
+      "featured": true,
+      "summary": "You play as an AI that solves levels like prompts — scan objects, copy their variables, paste them where they cause trouble.",
+      "details": "In Sector404 you play as an AI that solves each level like a prompt. Every object in a level is hackable: its variables are exposed and can be copied from one object and pasted onto another. Obstacles have code you can change, so you solve puzzles by moving properties around instead of by brute force.\nThe player is a procedurally generated soft-body slime with a raycast scanner beam and a clipboard. Level shapes (squares, triangles, circles and more) are built from TextMeshPro glyphs, with data-flow and scanner effects. You spend tokens (hearts), and if you run out, the prompt fails.\nNext step: plugging in a real LLM to generate whole levels at runtime from the game's parameters.",
+      "highlights": [
         "Hackable-entity system that exposes object variables for copy/paste",
         "Soft-body spring-physics slime player (SystemicSlime)",
+        "Raycast scanner beam and clipboard (PlayerHacker)",
         "Procedural level shapes built from TextMeshPro glyphs with data-flow effects",
-        "Token/heart economy — run out of tokens and the prompt fails"
+        "Token/heart economy with i-frames and dialogue on damage",
+        "Planned: an LLM that generates entire levels at runtime"
       ],
-      role: "Solo — design & code", tags: ["Unity", "C#", "Puzzle", "Systems"], image: "", links: []
+      "role": "Solo — design & code",
+      "tags": [
+        "Unity",
+        "C#",
+        "Systems",
+        "AI NPCs",
+        "Puzzle",
+        "Experimental"
+      ],
+      "image": "",
+      "links": []
     },
     {
-      id: "wasteland-chorus", title: "Wasteland Chorus", year: "2026", category: "Unreal", engine: "Unreal Engine 5",
-      status: "R&D", glyph: "☢️", color: "#b8722c", featured: true,
-      summary: "Post-apocalyptic survival with MetaHuman survivors who actually talk back — and a phone you swing like a weapon.",
-      details: "A survival concept exploring MetaHuman characters, LLM-driven NPC dialogue and a custom smartphone motion-controller pipeline that streams phone sensors to Unreal over WebSocket.",
-      highlights: [
+      "id": "wasteland-chorus",
+      "title": "Wasteland Chorus",
+      "year": "2026",
+      "category": "Unreal",
+      "engine": "Unreal Engine 5",
+      "status": "R&D",
+      "glyph": "☢️",
+      "color": "#b8722c",
+      "featured": true,
+      "summary": "Post-apocalyptic survival with MetaHuman survivors who actually talk back — and a phone you swing like a weapon.",
+      "details": "A survival concept exploring MetaHuman characters, LLM-driven NPC dialogue and a custom smartphone motion-controller pipeline that streams phone sensors to Unreal over WebSocket.",
+      "highlights": [
         "MetaHuman characters with Live Link facial capture",
         "LLM-driven NPC conversations",
         "Phone gyro/accelerometer streamed over WebSocket as a motion controller"
       ],
-      role: "Solo — tech & design", tags: ["Unreal", "MetaHuman", "AI NPCs", "Motion control"], image: "", links: []
+      "role": "Solo — tech & design",
+      "tags": [
+        "Unreal",
+        "MetaHuman",
+        "AI NPCs",
+        "Motion control"
+      ],
+      "image": "",
+      "links": []
     },
     {
-      id: "circuit-smasher", title: "Circuit Smasher", year: "2026", category: "Unity", engine: "Unity 6 · URP",
-      status: "Prototype", glyph: "⚡", color: "#5b4bd6", featured: true,
-      summary: "A vehicular arcade game: ride a bike, shunt colour-coded zombies into powerline slots. Electrifying. Literally.",
-      details: "Arcade prototype where a bike rider herds colour-matched zombies into powerline slot grids. Built in Unity 6 URP with a tuning-friendly setup.",
-      highlights: ["Vehicle + physics shunting", "Colour-matching slot grids", "Designer-friendly tuning values"],
-      role: "Solo", tags: ["Unity", "URP", "Arcade"], image: "", links: []
+      "id": "circuit-smasher",
+      "title": "Circuit Smasher",
+      "year": "2026",
+      "category": "Unity",
+      "engine": "Unity 6 · URP · C# · New Input System",
+      "status": "Prototype",
+      "glyph": "⚡",
+      "color": "#5b4bd6",
+      "featured": true,
+      "summary": "A vehicular arcade game: ride a bike, shunt colour-coded zombies into powerline slots. Electrifying. Literally.",
+      "details": "An arcade game where you ride a bike down a 5-lane highway and shunt colour-coded ragdoll zombies into gaps in zombie walls and powerline slot grids. Complete a chain of 3 or more of the same colour to zap and clear it. It's an endless runner and a match-3 puzzle in one.\nThe enemy types change how you play. Standard Infected (red, green, blue) can be matched. Heavy Brutes can't be moved, and touching one ends the run. Hazmat zombies insulate and break chains, so you have to ram them out. Frayed Powerlines are environmental hazards.\nIt started as a Unity 6 URP prototype (eight C# scripts, scene setup docs and a tuning reference). It then grew into Z-RUNNER, a portrait mobile version whose prototype is entirely code-generated: editor scripts build the materials, prefabs and scene, with no hand-made binary assets.",
+      "highlights": [
+        "Endless runner meets match-3: shunt zombies to complete colour chains",
+        "Vehicle and ragdoll physics shunting",
+        "Enemy variety: Standard, Heavy Brute, Hazmat insulator, Frayed Powerline hazard",
+        "Fully code-generated prototype: editor scripts build the materials, prefabs and scene",
+        "Designer-friendly tuning values"
+      ],
+      "role": "Solo",
+      "tags": [
+        "Unity",
+        "URP",
+        "C#",
+        "Mobile",
+        "Arcade",
+        "Runner",
+        "Puzzle"
+      ],
+      "image": "",
+      "links": []
     },
     {
-      id: "morphrush", title: "MorphRush", year: "2026", category: "Web", engine: "HTML5 · JavaScript",
-      status: "Playable", glyph: "🔷", color: "#2f7fd6", featured: false,
-      summary: "Endless runner meets shape-and-colour matching. Morph to fit the gate or eat the wall.",
-      details: "A browser game in a single self-contained file, with multiple control schemes, swipe input and difficulty that ramps up in stages.",
-      highlights: ["Runs in any browser, no install", "Swipe + keyboard controls", "Progressive difficulty stages"],
-      role: "Solo", tags: ["Web", "JavaScript", "Mobile"], image: "", links: []
+      "id": "my-gecko",
+      "title": "My Gecko",
+      "year": "2026",
+      "category": "Unity",
+      "engine": "Unity 6 · URP · C# · Android",
+      "status": "In development",
+      "glyph": "🦎",
+      "color": "#6f9f7a",
+      "featured": false,
+      "summary": "A cozy comfort app for a friend: a gecko on a rainy windowsill reads your mood from three playful taps and picks the right kind of nice thing to do.",
+      "details": "A cozy comfort app I'm building as a gift for a friend. A little gecko named Mochi lives on a rainy windowsill. When you open the app, Mochi asks three playful tap questions ('If you were a little animal right now, which one?'), quietly works out how you're feeling, and picks a comfort activity: sitting together, slow breathing, popping raindrops, a grounding game or a found treasure. You never have to make a decision.\nMochi remembers past visits, learns which activities actually help, has its own little life (Kevin the snail keeps escaping) and grows closer over time. At night it switches to slow sleepy puzzles that wind down to sleep.\nVersion 2 turns it into a shared space for two: one co-op gecko pet, shared goals, daily photo adventures, a sealed secret-notes jar revealed once a year, and 'hold hands', where comfort messages only appear while both friends hold the screen at the same time.",
+      "highlights": [
+        "Procedural, touch-following gecko (IK legs, head and eye tracking)",
+        "Mood read from 3 indirect tap questions, scored into 5 states",
+        "Learns which comfort activity helps most (bandit-style learner)",
+        "560+ hand-written gecko lines with memory slots and no-repeat rules",
+        "Rain audio synthesized entirely in code, no sound files",
+        "Night mode with sleepy puzzles that end on their own",
+        "v2: co-op pet, hold-hands messages, secret notes jar, on-device photo checks"
+      ],
+      "role": "Solo — design, code & writing",
+      "tags": [
+        "Unity",
+        "C#",
+        "URP",
+        "Mobile",
+        "Systems",
+        "Puzzle",
+        "Experimental"
+      ],
+      "image": "",
+      "links": []
     },
     {
-      id: "reverse", title: "REVERSE", year: "2026", category: "Game Jam", engine: "Mobile AR",
-      status: "Jam entry", glyph: "⏪", color: "#c2364b", featured: true,
-      summary: "ICAT Game Jam 2026: find an old CRT in AR, press reverse on history, jump in and change one thing — then don't get caught.",
-      details: "A solo 72-hour jam game for the theme REVERSE. You load a disc marked with a world event, play it backwards, pull a glowing orb to step into the scene in 3D, change something in 10 seconds and escape unseen.",
-      highlights: ["Solo, 72 hours", "AR-anchored retro TV setup", "Comedic take on rewriting history"],
-      role: "Solo", tags: ["AR", "Mobile", "Game Jam"], image: "", links: []
+      "id": "reverse",
+      "title": "The First Of Us",
+      "year": "2026",
+      "category": "Game Jam",
+      "engine": "Mobile AR · 3D",
+      "status": "Jam entry",
+      "glyph": "⏪",
+      "color": "#c2364b",
+      "featured": true,
+      "summary": "ICAT Game Jam 2026: find an old CRT in AR, press reverse on history, jump in and change one thing — then don't get caught.",
+      "details": "A solo 72-hour game for ICAT Game Jam 2026, theme REVERSE. You find an old CRT TV and tape setup anchored in the real world through AR, and load a disc labelled with a world event. Your old remote breaks mid-rewind, so you dig a new one out of your grandfather's lab. This one doesn't rewind: it has a REVERSE button. Press it and the event plays backwards, with the credits rolling first.\nPause at the right moment and pull a glowing orb to step into the scene in 3D. You have 10 seconds to change something, then 10 more to avoid the one person in the scene (ducking behind them works) before you escape back to an altered present.\nThe full vision is one continuous comedic reel of history from Adam and Eve to today, with each event boiled down to one main character and a ridiculous twist.",
+      "highlights": [
+        "Solo, 72 hours, ICAT Game Jam 2026",
+        "AR-anchored retro CRT and tape setup in your real room",
+        "The REVERSE button plays history backwards, credits first",
+        "Step into the scene: 10 s to change it, 10 s to not get caught",
+        "Comedic take on rewriting history"
+      ],
+      "role": "Solo",
+      "tags": [
+        "AR",
+        "Mobile",
+        "Game Jam",
+        "Narrative",
+        "Experimental"
+      ],
+      "image": "",
+      "links": []
     },
     {
-      id: "retro-arcade", title: "Back-to-Back Arcade", year: "2026", category: "Game Jam", engine: "Unity",
-      status: "Installation", glyph: "🕹️", color: "#d68a1e", featured: false,
-      summary: "A two-player retro versus installation: two screens back to back, two gamepads — and webcams that put your real face in the game.",
-      details: "Built for a 3-day 'retro arcade' jam as a public installation for 100+ players. One PC drives two monitors facing opposite directions; each side's webcam drops the player's face into the game.",
-      highlights: ["Dual-screen, one-PC setup", "Webcam faces in-game", "Designed for crowds and spectators"],
-      role: "Lead", tags: ["Unity", "Installation", "Local multiplayer"], image: "", links: []
+      "id": "retro-arcade",
+      "title": "fowlplay",
+      "year": "2026",
+      "category": "Game Jam",
+      "engine": "Unity",
+      "status": "Installation",
+      "glyph": "🕹️",
+      "color": "#d68a1e",
+      "featured": false,
+      "summary": "A two-player retro versus installation: two screens back to back, two gamepads — and webcams that put your real face in the game.",
+      "details": "fowlplay was built for a 3-day jam with the theme 'retro arcade', and run as a public installation for 100+ players and 100+ spectators. One PC drives two monitors placed back to back, facing opposite directions. Each side has its own gamepad and webcam, and the webcam puts that player's real face into the game. You're playing head-to-head against someone standing right behind you, without being able to see them.\nThe aim: retro arcade feel built with modern tech. It's funny, competitive and loud enough to pull in a crowd.",
+      "highlights": [
+        "Dual-screen, back-to-back setup from one PC",
+        "Webcams put players' real faces in the game",
+        "Gamepad-only controls: instant pick-up-and-play",
+        "Designed for 100+ players and spectators",
+        "Built fast in Unity with a Claude MCP workflow"
+      ],
+      "role": "Lead",
+      "tags": [
+        "Unity",
+        "Installation",
+        "Game Jam",
+        "Arcade",
+        "Local multiplayer"
+      ],
+      "image": "",
+      "links": []
+    },
+    {
+      "id": "morphrush",
+      "title": "MorphRush",
+      "year": "2026",
+      "category": "Web",
+      "engine": "HTML5 · JavaScript",
+      "status": "Playable",
+      "glyph": "🔷",
+      "color": "#2f7fd6",
+      "featured": false,
+      "summary": "Endless runner meets shape-and-colour matching. Morph to fit the gate or eat the wall.",
+      "details": "A browser game in a single self-contained file, with multiple control schemes, swipe input and difficulty that ramps up in stages.",
+      "highlights": [
+        "Runs in any browser, no install",
+        "Swipe + keyboard controls",
+        "Progressive difficulty stages"
+      ],
+      "role": "Solo",
+      "tags": [
+        "Web",
+        "JavaScript",
+        "Mobile"
+      ],
+      "image": "",
+      "links": []
+    },
+    {
+      "id": "get-up",
+      "title": "Get UP",
+      "year": "2026",
+      "category": "Other",
+      "engine": "Roblox (3D, hand-drawn style)",
+      "status": "In development",
+      "glyph": "🧹",
+      "color": "#e9a86b",
+      "featured": false,
+      "summary": "A calm, hand-drawn cleaning game: a girl having a hard time cleans her tiny city apartment bit by bit, and colour comes back to the world as she goes.",
+      "details": "Get UP starts with a girl struggling with depression waking up on her rooftop balcony in a huge city. She goes down to her messy two-room apartment (bedroom and bathroom, kitchen and laundry) and cleans it little by little. As her space gets cleaner, so does she, and her mood lifts.\nThe art is clearly hand-drawn. Everything starts dull, dark and desaturated, and colour returns as you clean. Moving objects get a 2–3 frame 'wiggle' animation. There are no rush or fail states: you can just hang out, use the computer, or flick the lights on and off.",
+      "highlights": [
+        "Colour returns to the world as you clean",
+        "Hand-drawn look with 2–3 frame wiggle animation",
+        "Calm, satisfying, no-pressure pacing",
+        "Optional idle interactions around the apartment"
+      ],
+      "role": "Solo: design & art direction",
+      "tags": [
+        "Roblox",
+        "Narrative",
+        "Experimental"
+      ],
+      "image": "",
+      "links": []
+    },
+    {
+      "id": "egg-celeration",
+      "title": "The Egg",
+      "year": "2026",
+      "category": "Unity",
+      "engine": "Unity · C#",
+      "status": "Prototype",
+      "glyph": "🥚",
+      "color": "#e8b531",
+      "featured": false,
+      "summary": "A mobile endless runner where you don't steer the egg, you shape the road: drag your finger to raise bumps and ramps and keep the egg rolling.",
+      "details": "Egg-celeration is an endless mobile runner. An egg rolls forward along a procedurally generated road at a constant speed, and the player controls the road's height by dragging a finger up or down. Ramps send it flying, bumps slow it down, and a bad curve ends the run. It was inspired by Draw the Road 3D.\nThe road is a smooth mesh that gets rebuilt every frame from a ring buffer of height points, and its MeshCollider updates in place. The egg is one Rigidbody sphere sitting on four raycast spring-damper suspensions.",
+      "highlights": [
+        "Player-sculpted road: drag to raise and lower the terrain in real time",
+        "Road mesh and collider rebuilt every frame from a ring buffer",
+        "Raycast spring-damper suspension (physics v4)",
+        "35° camera with lazy Y-follow for dramatic jumps"
+      ],
+      "role": "Solo: design & code",
+      "tags": [
+        "Unity",
+        "C#",
+        "Mobile",
+        "Systems",
+        "Runner"
+      ],
+      "image": "",
+      "links": []
+    },
+    {
+      "id": "chroma-crate-clear",
+      "title": "Chroma Crate Clear",
+      "year": "2026",
+      "category": "Unity",
+      "engine": "Unity · C# · DOTween",
+      "status": "In development",
+      "glyph": "🧊",
+      "color": "#e0457b",
+      "featured": false,
+      "summary": "A 3D puzzle meets match-3: tap arrow blocks out of a cluster, fill a 7-slot tray, and clear colours in threes before the tray fills up.",
+      "details": "Chroma Crate Clear is a mobile puzzle game that combines 3D block removal with match-3. Each level is a 3D cluster of arrow-marked blocks. Tap one, and if its path is clear it flies into a 7-slot tray. Three of the same colour clear out. If the tray fills up, you lose.\nLevels are generated by a 'reverse build' algorithm, which places trios of blocks with guaranteed exit paths, so every level can be solved and nothing soft-locks.",
+      "highlights": [
+        "Reverse-build level generator: every level is guaranteed solvable",
+        "3D spatial puzzle combined with a 7-slot match-3 tray",
+        "Planned: flow-chain multiplier, multi-cell blocks, daily seed mode",
+        "Juice: DOTween animation, haptics, pitch-ladder audio, micro-pauses"
+      ],
+      "role": "Solo: design & code",
+      "tags": [
+        "Unity",
+        "C#",
+        "Mobile",
+        "Systems",
+        "Puzzle"
+      ],
+      "image": "",
+      "links": []
+    },
+    {
+      "id": "dealloc",
+      "title": "dealloc()",
+      "year": "2026",
+      "category": "Game Jam",
+      "engine": "BYOG 2026 jam · procedural",
+      "status": "Jam entry",
+      "glyph": "🧩",
+      "color": "#7a5cff",
+      "featured": false,
+      "summary": "BYOG 2026 jam entry for 'Everything Is Temporary': you're a little pixel-body program that spends itself, piece by piece, to help a companion.",
+      "details": "dealloc() was my entry to BYOG (Build Your Own Game) 2026, theme 'Everything Is Temporary'. You play a program made of pixels. Every time you help your companion, you use up part of your own body, so the game ends with a small life lesson about what you give away. The entire game is procedurally generated.\nNext step: grow it into a huge, fully procedural open-world multiplayer game set inside a computer. It keeps the dealloc() rules and uses a dense, futuristic micro-pixel 3D look instead of Minecraft-style blocks.",
+      "highlights": [
+        "Theme: Everything Is Temporary",
+        "Your body is the resource: helping costs you pixels",
+        "Fully procedurally generated",
+        "Planned expansion: procedural open-world multiplayer inside a computer"
+      ],
+      "role": "Solo",
+      "tags": [
+        "Game Jam",
+        "Systems",
+        "Narrative",
+        "Experimental"
+      ],
+      "image": "",
+      "links": []
+    },
+    {
+      "id": "kaatru",
+      "title": "Sailboat Racing",
+      "year": "2026",
+      "category": "Unity",
+      "engine": "Unity · C# · online multiplayer",
+      "status": "R&D",
+      "glyph": "⛵",
+      "color": "#1f7fb8",
+      "featured": false,
+      "summary": "A chaotic 2–6 player online party game about traditional coastal sailboat racing, with wobbly bodies, simple controls and lots of yelling.",
+      "details": "This game is inspired by the coastal boat racing in the Tamil film Mandaadi. You play the Mandaadi, the captain of a traditional sailboat, racing against other crews. It started as a competitive 2–6 player online sailing game. In October 2026 it changed direction into a very funny co-op party game with sloppy, wobbly body physics and no complicated mechanics.",
+      "highlights": [
+        "2–6 players online",
+        "Wobbly ragdoll-style body physics",
+        "Rooted in Tamil coastal boat-racing culture",
+        "Simple controls, built for laughs"
+      ],
+      "role": "Solo: design & code",
+      "tags": [
+        "Unity",
+        "C#",
+        "Arcade",
+        "Local multiplayer"
+      ],
+      "image": "",
+      "links": []
+    },
+    {
+      "id": "heap",
+      "title": "HEAP",
+      "year": "2026",
+      "category": "Other",
+      "engine": "3D · procedural · multiplayer",
+      "status": "Idea",
+      "glyph": "💾",
+      "color": "#00c2d1",
+      "featured": false,
+      "summary": "The big sequel to dealloc(): a huge, fully procedural open-world multiplayer game that takes place inside a computer, where your body is still the currency.",
+      "details": "HEAP grows my BYOG 2026 jam game dealloc() into a massive, fully procedurally generated open-world multiplayer game with Minecraft-scale freedom, set inside a computer. It keeps dealloc()'s core rule: you're a program made of pixels, and helping others costs you parts of yourself.\nIt's 3D, but it doesn't use blocks. The look is dense and futuristic, made of tiny micro-pixels.",
+      "highlights": [
+        "Expands the dealloc() jam game",
+        "Fully procedural open world inside a computer",
+        "Multiplayer, Minecraft-scale freedom",
+        "Dense futuristic micro-pixel 3D look (no blocks)"
+      ],
+      "role": "Solo: design & code",
+      "tags": [
+        "Systems",
+        "Survival",
+        "Experimental"
+      ],
+      "image": "",
+      "links": []
+    },
+    {
+      "id": "magzzele",
+      "title": "magzzele",
+      "year": "2026",
+      "category": "Other",
+      "engine": "2D · Steam P2P",
+      "status": "Idea",
+      "glyph": "🧲",
+      "color": "#4fae8c",
+      "featured": false,
+      "summary": "An endless 2D co-op puzzle game for exactly two players: dreamy puzzles plus Stardew/Terraria-style building, with a My Singing Monsters musical charm.",
+      "details": "magzzele is a 2D puzzle game built for exactly two players working together. It mixes the dreamy puzzle feel of Her Trees: Puzzle Dream and Birth with the cosy building and exploring of Stardew Valley and Terraria, and adds the musical, collectible charm of My Singing Monsters. It's endless, so the world and puzzles keep going instead of ending after a fixed number of levels. Online co-op runs on Steam P2P networking.",
+      "highlights": [
+        "Co-op for exactly 2 players",
+        "Endless: no final level",
+        "Puzzle + cosy sandbox crossover",
+        "Steam P2P networking"
+      ],
+      "role": "Solo: design & code",
+      "tags": [
+        "Systems",
+        "Puzzle",
+        "Local multiplayer"
+      ],
+      "image": "",
+      "links": []
     }
   ],
 

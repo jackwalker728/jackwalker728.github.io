@@ -39,7 +39,7 @@ Every edit you commit goes live automatically.
 
 ## 3D Jack
 - `assets/js/jack3d.js`: semi-realistic Jack built from code (no model files): human proportions, PBR skin/hair/fabric, ~1,100 instanced hair curls, textured beard, real eyes, studio lighting (RoomEnvironment) and soft shadows. The world reuses the same builder for NPCs (lighter detail).
-- Wardrobe (tops, hats, glasses, neck, held items, pants, shoes) lives in `content.js → wardrobe`. Change colours/names there.
+- `assets/js/jack3d.js`: cute chibi Jack built from code (no model files), toon-shaded. The world around him uses PBR materials, soft shadows and textured props (grass, asphalt, tiles, wood, stone).
 - The 2D Jack shows instantly and the 3D one swaps in once loaded. On very old devices without WebGL, the 2D one stays.
 - Rendering pauses when the tab is hidden or Jack is scrolled off screen (saves battery).
 

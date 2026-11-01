@@ -8,6 +8,7 @@ import { EffectComposer } from "../vendor/pp/EffectComposer.js";
 import { RenderPass } from "../vendor/pp/RenderPass.js";
 import { UnrealBloomPass } from "../vendor/pp/UnrealBloomPass.js";
 import { OutputPass } from "../vendor/pp/OutputPass.js";
+import { Sky } from "../vendor/Sky.js";
 
 const { C, A, $, esc, pick, toast } = window.Jack;
 const WD = C.world || {}, P = C.profile, TAU = Math.PI * 2;
@@ -39,7 +40,20 @@ const ENV = getEnv(renderer);
 host.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 const skyC = new THREE.Color("#a8dcea"); scene.background = skyC; scene.fog = new THREE.Fog(skyC, 90, 330);
-const cam = new THREE.PerspectiveCamera(touch ? 58 : 52, 1, .3, 700);
+const cam = new THREE.PerspectiveCamera(touch ? 58 : 52, 1, .3, 1200);
+const sky = new Sky(); sky.scale.setScalar(1000); scene.add(sky);
+{ const u = sky.material.uniforms; u.turbidity.value = 5; u.rayleigh.value = 1.4; u.mieCoefficient.value = .004; u.mieDirectionalG.value = .82; }
+const sunDir = new THREE.Vector3(.5, .7, .3).normalize();
+const windU = { value: 0 }; // shared wind clock for grass + leaves
+const swayMat = (m, amp, freq) => { m.onBeforeCompile = sh => { sh.uniforms.uWind = windU; sh.vertexShader = "uniform float uWind;\n" + sh.vertexShader.replace("#include <begin_vertex>", `#include <begin_vertex>
+  #ifdef USE_INSTANCING
+  vec4 wpo = instanceMatrix * vec4(0., 0., 0., 1.);
+  #else
+  vec4 wpo = vec4(0.);
+  #endif
+  float hgt = max(0., position.y);
+  float sw = sin(uWind * ${freq.toFixed(2)} + wpo.x * .21 + wpo.z * .17) * ${amp.toFixed(3)} + sin(uWind * ${(freq * 2.3).toFixed(2)} + wpo.x * .7) * ${(amp * .35).toFixed(3)};
+  transformed.x += sw * hgt * hgt; transformed.z += sw * .6 * hgt * hgt;`); }; m.customProgramCacheKey = () => "sway" + amp + freq; return m; };
 const hemi = new THREE.HemisphereLight("#ffffff", "#5b7a4a", 1.7); scene.add(hemi);
 const sun = new THREE.DirectionalLight("#fff3dc", 2.3); sun.position.set(30, 60, 20); scene.add(sun); scene.add(sun.target);
 if (SHADOWS) { sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); const sc = sun.shadow.camera; sc.left = sc.bottom = -55; sc.right = sc.top = 55; sc.near = 1; sc.far = 190; sun.shadow.bias = -.0004; sun.shadow.normalBias = .05; }
@@ -172,13 +186,14 @@ const trees = [], pines = [];
     if (Math.hypot(x, z) > WR - 4 || !okSpot(x, z, 1.2 * s)) continue;
     (R() < .35 ? pines : trees).push({ x, z, s, ry: R() * TAU }); addCol(x, z, .55 * s);
   } }
-const greens = ["#3f9a4a", "#4fae55", "#5cbf5f", "#3a8f48"];
+const greens = ["#3d8a3f", "#4a9a47", "#56a64f", "#3a8040", "#5d9e3e"];
+function lumpy(r, w, h) { const g = new THREE.SphereGeometry(r, w, h), p = g.attributes.position; for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i), n = 1 + .13 * Math.sin(x * 5.1 + y * 3.7) * Math.cos(z * 4.3 - y * 2.1) + .06 * Math.sin(x * 11 + z * 9); p.setXYZ(i, x * n, y * n * .92, z * n); } g.computeVertexNormals(); return g; }
 instanced(GEO.cyl(.15, .3, 1.9, 7), MF("#6f4628"), [...trees, ...pines].map(t => ({ ...t, y: .95 * t.s })));
 const lobes = [];
 trees.forEach(t => { const c = Math.cos(t.ry), sn = Math.sin(t.ry), tint = rpick(greens); [[0, 2.6, 0, 1], [.65, 2.25, .25, .72], [-.55, 2.35, -.3, .7], [.1, 3.2, -.15, .62], [-.2, 2.2, .6, .6]].forEach(([ox, oy, oz, k]) => lobes.push({ x: t.x + (ox * c + oz * sn) * t.s, y: oy * t.s, z: t.z + (-ox * sn + oz * c) * t.s, s: 1.35 * k * t.s, ry: R() * TAU, tint })); });
-instanced(new THREE.IcosahedronGeometry(1, 1), MF("#ffffff"), lobes, it => "#" + new THREE.Color(it.tint).offsetHSL(0, .02, (R() - .5) * .07).getHexString());
+instanced(lumpy(1, 14, 10), swayMat(new THREE.MeshStandardMaterial({ color: "#ffffff", roughness: .82 }), .035, 1.3), lobes, it => "#" + new THREE.Color(it.tint).offsetHSL(0, .02, (R() - .5) * .07).getHexString());
 const tiers = []; pines.forEach(t => { const tint = rpick(["#2f7d45", "#35864a", "#2a7040"]); [[2.1, 1.5, 2.1], [3.1, 1.15, 1.8], [3.95, .8, 1.5]].forEach(([y, r, h]) => tiers.push({ x: t.x, z: t.z, y: y * t.s, ry: R() * TAU, sx: r * t.s, sz: r * t.s, sy: h * t.s, tint })); });
-instanced(GEO.cone(1, 1, 8), MF("#ffffff"), tiers, it => it.tint);
+instanced(GEO.cone(1, 1, 12), swayMat(new THREE.MeshStandardMaterial({ color: "#ffffff", roughness: .85 }), .02, 1.1), tiers, it => it.tint);
 const bushes = []; for (let i = 0; i < (LOW ? 30 : 55); i++) { const x = rr(-WR, WR), z = rr(-WR, WR); if (Math.hypot(x, z) < WR && okSpot(x, z, .6)) bushes.push({ x, z, s: rr(.6, 1.1), y: .45 }); }
 instanced(new THREE.IcosahedronGeometry(.9, 1), MF("#ffffff"), bushes, () => rpick(["#4fae55", "#62c062", "#3f9a4a"]));
 const rocks = []; for (let i = 0; i < 900 && rocks.length < 34; i++) { const x = rr(-WR, WR), z = rr(-WR, WR), s = rr(.5, 1.3); if (Math.hypot(x, z) < WR && okSpot(x, z, s)) { rocks.push({ x, z, s, y: .28 * s, ry: R() * TAU, sx: s * rr(.8, 1.3), sy: s * rr(.55, .9), sz: s * rr(.8, 1.2) }); addCol(x, z, .7 * s); } }
@@ -188,6 +203,30 @@ instanced(GEO.cyl(.015, .02, .4, 4), "#3f8f3a", flowers.map(f => ({ ...f, y: .2 
 instanced(GEO.sph(.13, 8, 6), "#ffffff", flowers, () => rpick(["#ff6b8b", "#ffd166", "#ffffff", "#c38bff", "#ff9f43"])).userData.noCast = 1;
 const tufts = []; for (let i = 0; i < (LOW ? 700 : 1400); i++) { const a = R() * TAU, d = Math.sqrt(R()) * (WR + 10), x = Math.cos(a) * d, z = Math.sin(a) * d; if (okSpot(x, z, .1)) tufts.push({ x, z, y: .2, s: rr(.7, 1.3), rx: rr(-.25, .25), rz: rr(-.25, .25), ry: R() * TAU }); }
 instanced(GEO.cone(.09, .45, 3), MF("#ffffff"), tufts, () => rpick(["#5cae4f", "#6fbf5b", "#4f9a45", "#86c66a"])).userData.noCast = 1;
+// grass: wind-swept blade clumps in a window around Jack, wrapped as he moves (never on roads, plazas or water)
+const GRASS = (() => {
+  const N = LOW ? 3200 : 9000, SZ = LOW ? 48 : 64, P = [], UV = [];
+  for (let k = 0; k < 3; k++) { const a = k / 3 * Math.PI + .4, c = Math.cos(a) * .05, sn = Math.sin(a) * .05, ln = (k - 1) * .07, pts = [[-c, 0, -sn, 0], [c, 0, sn, 0], [-c * .55 + ln * .5, .22, -sn * .55, .55], [c * .55 + ln * .5, .22, sn * .55, .55], [ln, .42, 0, 1]];
+    [0, 1, 2, 1, 3, 2, 2, 3, 4].forEach(i => { P.push(pts[i][0], pts[i][1], pts[i][2]); UV.push(.5, pts[i][3]); }); }
+  const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.Float32BufferAttribute(P, 3)); geo.setAttribute("uv", new THREE.Float32BufferAttribute(UV, 2));
+  geo.setAttribute("normal", new THREE.Float32BufferAttribute(new Array(P.length).fill(0).map((_, i) => i % 3 === 1 ? 1 : 0), 3));
+  const mat = swayMat(new THREE.MeshStandardMaterial({ color: "#ffffff", roughness: .95, side: THREE.DoubleSide }), .5, 1.8);
+  const base = mat.onBeforeCompile; mat.onBeforeCompile = sh => { base(sh); sh.vertexShader = sh.vertexShader.replace("void main() {", "varying float vGH;\nvoid main() { vGH = uv.y;"); sh.fragmentShader = sh.fragmentShader.replace("void main() {", "varying float vGH;\nvoid main() {").replace("#include <color_fragment>", "#include <color_fragment>\n diffuseColor.rgb *= mix(.72, 1.1, vGH);").replace("#include <normal_fragment_begin>", "#include <normal_fragment_begin>\n normal = normalize(vNormal); // both blade sides lit like the ground"); };
+  mat.customProgramCacheKey = () => "grass";
+  const im = new THREE.InstancedMesh(geo, mat, N); im.userData.noCast = 1; im.frustumCulled = false; scene.add(im);
+  const bx = new Float32Array(N), bz = new Float32Array(N), sc = new Float32Array(N), ry = new Float32Array(N), lx = new Float32Array(N).fill(1e9), lz = new Float32Array(N).fill(1e9), tints = ["#7cb84f", "#86c159", "#6fae49", "#92c862", "#79b552"];
+  for (let i = 0; i < N; i++) { bx[i] = Math.random() * SZ; bz[i] = Math.random() * SZ; sc[i] = .55 + Math.random() * .6; ry[i] = Math.random() * TAU; im.setColorAt(i, col.set(tints[i % tints.length])); }
+  let ux = 1e9, uz = 1e9;
+  return { im, update(px, pz) {
+    if (Math.hypot(px - ux, pz - uz) < 3) return; ux = px; uz = pz; let ch = false;
+    for (let i = 0; i < N; i++) {
+      const x = bx[i] + SZ * Math.round((px - bx[i]) / SZ), z = bz[i] + SZ * Math.round((pz - bz[i]) / SZ); if (x === lx[i] && z === lz[i]) continue; lx[i] = x; lz[i] = z; ch = true;
+      const ok = Math.hypot(x, z) < WR + 30 && roadDist(x, z) > 3.9 && zones.every(q => Math.hypot(q.x - x, q.z - z) > q.r + .4) && ponds.every(p => Math.hypot(p.x - x, p.z - z) > p.r + .9);
+      dummy.position.set(x, 0, z); dummy.rotation.set(0, ry[i], 0); dummy.scale.setScalar(ok ? sc[i] : 0); dummy.updateMatrix(); im.setMatrixAt(i, dummy.matrix);
+    }
+    if (ch) im.instanceMatrix.needsUpdate = true;
+  } };
+})();
 // horizon: two rings of soft rolling hills far past the edge
 { const rings = [[], []];
   for (let L = 0; L < 2; L++) for (let i = 0, n = L ? 30 : 42; i < n; i++) { const a = i / n * TAU + R() * .12, s = L ? rr(50, 85) : rr(22, 40), d = WR + (L ? 70 : 16) + s * .95 + rr(0, 10); rings[L].push({ x: Math.cos(a) * d, z: Math.sin(a) * d, y: -s * .18, s, sy: s * (L ? rr(.45, .7) : rr(.35, .55)), ry: R() * TAU }); }
@@ -458,7 +497,7 @@ function makeNPC(i) {
   const p = rpick(zones);
   return { g, legs, knees: legs.map(l => l.add(new THREE.Group()).children.at(-1)), arms, head, name: names[i % names.length], x: p.x + rr(-p.r - 4, p.r + 4), z: p.z + rr(-p.r - 4, p.r + 4), y: 0, vy: 0, yaw: R() * TAU, tx: 0, tz: 0, wait: rr(0, 3), ph: R() * 10, kv: null };
 }
-for (let i = 0; i < (LOW ? 8 : 14); i++) { const n = makeNPC(i); pushOut(n, .6); npcs.push(n); }
+for (let i = 0; i < (LOW ? 10 : 20); i++) { const n = makeNPC(i); pushOut(n, .6); npcs.push(n); }
 function npcTarget(n) {
   if (Math.random() < .6) { const z = pick(zones); n.tx = z.x + (Math.random() - .5) * z.r * 2.4; n.tz = z.z + (Math.random() - .5) * z.r * 2.4; }
   else { const p = onRoad(pick(segs), Math.random(), (Math.random() < .5 ? 1 : -1) * 3.2); n.tx = p.x; n.tz = p.z; }
@@ -476,6 +515,141 @@ for (let i = 0; i < 2; i++) {
   [[-.4, .7], [.4, .7], [-.4, -.7], [.4, -.7]].forEach(([x, z]) => mesh(GEO.cyl(.13, .13, .8, 6), "#f6f1e8", x, .4, z, g));
   const p = onRoad(rpick(segs), rr(.3, .7), rr(-2, 2));
   cows.push({ g, x: p.x, z: p.z, hx: p.x, hz: p.z, yaw: R() * TAU, tx: p.x, tz: p.z, wait: 0 });
+}
+
+/* ---------- living world: keep-left traffic (it's Bangalore) + funny hangouts you can join ---------- */
+const traffic = [], hangouts = [], crowd = [];
+const HONKS = ["Beep beep! The road is not a hangout, Jack!", "Driver: 'Procedural pedestrian detected.'", "Honk! (that's 'excuse me' in Bangalore)", "Driver: 'Move! I'm late for a stand-up meeting!'", "Beep! Even the cows know road rules."];
+{
+  const adj = new Map(); for (const [a, b] of segs) { (adj.get(a) || adj.set(a, []).get(a)).push(b); (adj.get(b) || adj.set(b, []).get(b)).push(a); }
+  const LANE = 1.4, ring = z => z.r + (z.kind === "pitch" ? 3 : 4.5);
+  const leg = (a, b) => { const dx = b.x - a.x, dz = b.z - a.z, L = Math.hypot(dx, dz) || 1, fx = dx / L, fz = dz / L, lx = fz * LANE, lz = -fx * LANE;
+    return { s: { x: a.x + fx * ring(a) + lx, z: a.z + fz * ring(a) + lz }, e: { x: b.x - fx * ring(b) + lx, z: b.z - fz * ring(b) + lz } }; };
+  const plan = c => { // round the plaza, then down the next road
+    const ai = c.ai, opts = (adj.get(ai.to) || []).filter(z => z !== ai.from), nx = opts.length ? pick(opts) : ai.from;
+    const cur = leg(ai.from, ai.to).e, nl = leg(ai.to, nx), B = ai.to, R0 = Math.hypot(cur.x - B.x, cur.z - B.z);
+    const a0 = Math.atan2(cur.z - B.z, cur.x - B.x), da = angDiff(Math.atan2(nl.s.z - B.z, nl.s.x - B.x), a0), n = Math.max(2, Math.ceil(Math.abs(da) / .35));
+    for (let k = 1; k <= n; k++) { const a = a0 + da * k / n; ai.wp.push({ x: B.x + Math.cos(a) * R0, z: B.z + Math.sin(a) * R0 }); }
+    ai.wp.push(nl.e); ai.from = ai.to; ai.to = nx;
+  };
+  const cols = ["#3a7bd5", "#e8e4dc", "#2a2a30", "#c0392b", "#16a085", "#f39c12", "#8e44ad"];
+  for (let i = 0, N = LOW ? 3 : 6; i < N && segs.length; i++) {
+    const s = rpick(segs), [a, b] = R() < .5 ? s : [s[1], s[0]], l = leg(a, b), t = rr(.1, .8), x = l.s.x + (l.e.x - l.s.x) * t, z = l.s.z + (l.e.z - l.s.z) * t;
+    const c = makeCar(cols[i % cols.length], x, z, Math.atan2(b.x - a.x, b.z - a.z));
+    const drv = new THREE.Group(); drv.position.set(-.5, .75, -.35); c.body.add(drv);
+    mesh(GEO.cap(.34, .3), rpick(["#41d3c9", "#f3b94d", "#7b5cff", "#d43c55", "#f4f4f1"]), 0, .95, 0, drv); mesh(GEO.sph(.42, 14, 10), rpick(["#8b5a3c", "#a8714d", "#6e4329", "#c58c62"]), 0, 1.7, 0, drv);
+    c.ai = { from: a, to: b, wp: [l.e], sp: 0, max: rr(8, 11), honkT: 0, waitT: 0 }; c.plan = plan;
+    c.g.position.set(x, 0, z); c.g.rotation.y = c.yaw; traffic.push(c);
+  }
+}
+function trafficTick(dt) {
+  for (const c of traffic) {
+    const ai = c.ai; if (!ai.wp.length) c.plan(c);
+    const w = ai.wp[0], dx = w.x - c.x, dz = w.z - c.z; if (Math.hypot(dx, dz) < 1.8) { ai.wp.shift(); continue; }
+    c.yaw = lerpA(c.yaw, Math.atan2(dx, dz), 1 - Math.exp(-dt * 3));
+    const fx = Math.sin(c.yaw), fz = Math.cos(c.yaw); let block = null;
+    const chk = (o, who) => { if (block) return; const ox = o.x - c.x, oz = o.z - c.z, ahead = ox * fx + oz * fz; if (ahead > 0 && ahead < 7.5 && Math.abs(ox * fz - oz * fx) < 2.3) block = who; };
+    chk(driving || me, "jack"); for (const r of remotes.values()) chk(r, "other"); for (const n of npcs) if (!n.kv) chk(n, "npc"); for (const o of traffic) if (o !== c) chk(o, "car");
+    ai.sp += ((block ? 0 : ai.max) - ai.sp) * (1 - Math.exp(-dt * (block ? 5 : 1.2)));
+    ai.honkT -= dt;
+    if (block === "jack") { if ((ai.waitT += dt) > 1.6 && ai.honkT <= 0) { ai.honkT = 8; A.sfx("honk"); if (started && !driving) toast(`🚗 ${pick(HONKS)}`); } } else ai.waitT = 0;
+    c.x += fx * ai.sp * dt; c.z += fz * ai.sp * dt; c.speed = ai.sp;
+    c.g.position.set(c.x, 0, c.z); c.g.rotation.y = c.yaw; c.wheels.forEach(wh => wh.rotation.x += ai.sp * dt / c.wr);
+  }
+}
+
+// hangouts: little groups of locals doing something silly together. Walk up and press E to join in.
+const HANG = [
+  { k: "dance", title: "dance circle", icon: "💃", r: 4.5, lines: ["Is this the Singleton Games anthem?", "My hitbox is grooving.", "Nobody tell QA about this.", "Five, six, seven, eight… segfault!", "Dance like the build is green."], joined: ["Jack's got moves!", "Okay that spin was illegal.", "Jack, teach us the Unity dance!"], join: "💃 Jack joined the dance circle. The boombox approves." },
+  { k: "cricket", title: "gully cricket", icon: "🏏", r: 7, lines: ["Howzat?!", "That's OUT! … okay fine, not out.", "SIX! (it rolled)", "Rain stopped play. There is no rain.", "Last ball, then dinner. (lie)"], joined: ["Jack's batting! Fielders, go home.", "Who hits a six into another seed?!"], join: "🏏 Jack takes the bat… SIX! The ball is now in another world seed." },
+  { k: "chai", title: "chai gossip", icon: "☕", r: 3.5, lines: ["Did you hear Jack added 14 projects?", "My code compiled first try. I'm scared.", "Kaapi or chai? Wrong answers only.", "Apparently there's a slime with admin rights.", "Shh, he's walking over!"], joined: ["Pull up a chair, Jack!", "One cutting chai for the game dev!"], join: "☕ They poured Jack a cutting chai. Speed boost!" },
+  { k: "selfie", title: "group selfie", icon: "📸", r: 3.5, lines: ["Say 'Unity'!", "Again, I blinked.", "Post it with #GameJamLife.", "Is my good side loaded yet?", "Wait, the light's in my eyes. It's a texture."], joined: ["JACK PHOTOBOMBED US.", "Honestly better with Jack in it."], join: "📸 Jack photobombed the selfie. It's now their profile picture." },
+  { k: "yoga", title: "park yoga", icon: "🧘", r: 5, lines: ["Breathe in… breathe out… git push.", "Downward debugging dog.", "My spine just made a sound effect.", "Namaste… in production.", "Hold it… hold it… frame drop."], joined: ["Jack, that's not a pose, that's a T-pose.", "Very flexible. Like his deadlines."], join: "🧘 Jack attempted the tree pose. The actual trees are offended." },
+  { k: "band", title: "street band", icon: "🎸", r: 4.5, lines: ["This one's called 'NullReferenceException'!", "One more song! (we only know one)", "Thank you, Bangalore! (there are 2 people)", "Drum solo! … that was the whole solo.", "We're big in the debug log."], joined: ["Give it up for Jack on vocals!", "Our first fan! And he's singing!"], join: "🎤 Jack joined on vocals. The crowd (one cow) goes wild." },
+  { k: "argue", title: "fender-bender", icon: "🚗", r: 5, lines: ["You braked!", "You were in MY lane!", "We're both procedurally generated!", "My car has a 5-star rating!", "Fine. Rock, paper, scissors?"], joined: ["…okay, we're good.", "Sorry I yelled. Hug it out?"], join: "🤝 Jack: 'You're both right.' They hug it out. Insurance not needed." }
+];
+function bubbleSprite() {
+  const cv = document.createElement("canvas"); cv.width = 512; cv.height = 160; const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, transparent: true })); s.scale.set(6.4, 2, 1); s.renderOrder = 25; s.visible = false; scene.add(s);
+  s.say = txt => {
+    const x = cv.getContext("2d"); x.clearRect(0, 0, 512, 160); x.fillStyle = "#ffffff"; rrect(x, 8, 8, 496, 116, 30); x.fill(); x.beginPath(); x.moveTo(236, 122); x.lineTo(256, 152); x.lineTo(276, 122); x.fill();
+    x.fillStyle = "#1a1420"; x.font = "700 34px Inter,system-ui,sans-serif"; x.textAlign = "center"; x.textBaseline = "middle";
+    const words = txt.split(" "), L = [""]; for (const w of words) { const tr = (L.at(-1) + " " + w).trim(); if (x.measureText(tr).width > 470 && L.at(-1)) L.push(w); else L[L.length - 1] = tr; }
+    const ls = L.slice(0, 2); ls.forEach((l, i) => x.fillText(l, 256, 66 + (i - (ls.length - 1) / 2) * 40)); t.needsUpdate = true;
+  };
+  return s;
+}
+{
+  const spot = rad => { for (let t = 0; t < 300; t++) { const z = rpick(zones), a = R() * TAU, d = z.r + rr(10, 24), x = z.x + Math.cos(a) * d, zz = z.z + Math.sin(a) * d;
+    if (Math.hypot(x, zz) > WR - 15 || roadDist(x, zz) < rad + 4 || !zones.every(q => Math.hypot(q.x - x, q.z - zz) > q.r + rad + 3) || !ponds.every(p => Math.hypot(p.x - x, p.z - zz) > p.r + rad + 2) || hangouts.some(h => Math.hypot(h.x - x, h.z - zz) < 28)) continue;
+    if (pushOut({ x, z: zz }, rad)) continue; return { x, z: zz }; } return null; };
+  for (const def of HANG) {
+    const p = spot(def.r + 1); if (!p) continue;
+    const h = { ...def, x: p.x, z: p.z, th: R() * TAU, actors: [], props: new THREE.Group(), bub: bubbleSprite(), sayT: rr(0, 2), li: 0, ai: 0, joinT: 0, ph: R() * 9 };
+    h.props.position.set(h.x, 0, h.z); h.props.rotation.y = h.th; scene.add(h.props);
+    const loc = (lx, lz) => ({ x: h.x + lx * Math.cos(h.th) + lz * Math.sin(h.th), z: h.z - lx * Math.sin(h.th) + lz * Math.cos(h.th) });
+    const actor = (lx, lz, tx, tz) => { const n = makeNPC(npcs.length + crowd.length + 5), q = loc(lx, lz), f = loc(tx, tz); n.x = q.x; n.z = q.z; n.yaw = Math.atan2(f.x - q.x, f.z - q.z); n.ph = R() * 9; n.g.position.set(n.x, 0, n.z); n.g.rotation.y = n.yaw; h.actors.push(n); crowd.push(n); return n; };
+    const G = h.props, col = (lx, lz, r) => { const q = loc(lx, lz); addCol(q.x, q.z, r); };
+    if (h.k === "dance") { mesh(GEO.rbox(.9, .55, .4, .06), "#2a2433", 0, .28, 0, G); [-.24, .24].forEach(x => mesh(GEO.cyl(.15, .15, .05, 16), "#c9c6bd", x, .3, .21, G).rotation.x = Math.PI / 2); col(0, 0, .6); for (let i = 0; i < 4; i++) { const a = i / 4 * TAU; actor(Math.cos(a) * 2.3, Math.sin(a) * 2.3, 0, 0); } }
+    if (h.k === "cricket") { [-.2, 0, .2].forEach(x => mesh(GEO.cyl(.04, .04, .9, 6), "#f3e3c8", x, .45, -.9, G)); mesh(GEO.box(1.4, .02, 12), "#d9c79a", 0, .02, 5, G);
+      h.bat = actor(0, 0, 0, 10); h.keeper = actor(0, -2.4, 0, 10); h.bowler = actor(0, 11, 0, 0); h.field = actor(5, 7, 0, 0);
+      const bat = mesh(GEO.box(.12, .9, .08), "#c79a5b", 0, -.95, .15, h.bat.arms[1]); bat.rotation.x = .3; h.ball = mesh(GEO.sph(.13, 10, 8), "#c0392b", 0, 1, 0, scene); }
+    if (h.k === "chai") { mesh(GEO.cyl(.7, .7, .06, 20), WOOD, 0, .85, 0, G); mesh(GEO.cyl(.08, .08, .85, 8), IRON, 0, .42, 0, G); for (let i = 0; i < 3; i++) { const a = i / 3 * TAU; mesh(GEO.cyl(.09, .07, .18, 10), "#f6f1e8", Math.cos(a) * .35, .97, Math.sin(a) * .35, G); actor(Math.cos(a) * 1.6, Math.sin(a) * 1.6, 0, 0); } col(0, 0, .8); }
+    if (h.k === "selfie") { [-1.1, 0, 1.1].forEach(x => actor(x, 0, x, 6)); h.phone = mesh(GEO.box(.32, .55, .05), "#1b1b20", 0, -.75, .15, h.actors[2].arms[1]); h.flash = mesh(GEO.sph(.35, 10, 8), Bm("#ffffff", .9), 0, 0, .1, h.phone); h.flash.visible = false; }
+    if (h.k === "yoga") { [-3, -1, 1, 3].forEach((x, i) => { mesh(GEO.box(1, .03, 2), ["#7b5cff", "#41d3c9", "#ff9f43", "#5cbf5f"][i], x, .02, 0, G); actor(x, 0, x, 5); }); h.guru = actor(0, 3.2, 0, 0); }
+    if (h.k === "band") { h.drum = actor(0, -1, 0, 5); mesh(GEO.cyl(.55, .55, .5, 18), "#d43c55", 0, .45, -.1, G); mesh(GEO.cyl(.5, .5, .02, 18), "#f6f1e8", 0, .71, -.1, G); mesh(GEO.cyl(.35, .35, .02, 14), "#e2b04a", .8, 1.3, -.6, G); mesh(GEO.cyl(.02, .02, 1.3, 6), IRON, .8, .65, -.6, G);
+      h.gtr = actor(-1.7, .4, -1.7, 5); const gb = mesh(GEO.rbox(.6, .75, .14, .08), "#b8722c", .15, -.45, .35, h.gtr.arms[1]); gb.rotation.z = .9; mesh(GEO.box(.08, .9, .06), "#3a2a20", -.3, .45, 0, gb);
+      h.sing = actor(1.7, .4, 1.7, 5); mesh(GEO.cyl(.03, .03, 1.5, 6), IRON, 1.7, .75, 1.1, G); mesh(GEO.sph(.09, 8, 6), "#2a2433", 1.7, 1.55, 1.1, G); col(0, -.3, .9); }
+    if (h.k === "argue") { const cA = makeCar("#5a8fd6", 0, 0, 0), cB = makeCar("#e0e0d8", 0, 0, 0); [[cA, -2.3, -.1, Math.PI / 2 + .25], [cB, 2.4, .3, -Math.PI / 2 - .2]].forEach(([c, lx, lz, ry]) => { const q = loc(lx, lz); c.g.position.set(q.x, 0, q.z); c.g.rotation.y = h.th + ry; addCol(q.x, q.z, 1.9); });
+      cA.body.rotation.z = .04; actor(-1, 3, 1, 3); actor(1, 3, -1, 3); }
+    hangouts.push(h);
+  }
+}
+function hangTick(dt) {
+  for (const h of hangouts) {
+    const d = Math.hypot(h.x - me.x, h.z - me.z); if (d > 75) { h.bub.visible = false; continue; }
+    const t = clock + h.ph, A0 = h.actors; h.joinT -= dt;
+    A0.forEach(n => { n.arms.forEach(a => a.rotation.set(0, 0, 0)); n.legs.forEach(l => l.rotation.set(0, 0, 0)); n.head.rotation.set(0, 0, 0); n.g.position.y = 0; n.g.rotation.set(0, n.yaw, 0); });
+    if (h.k === "dance") { A0.forEach(n => { const b = Math.sin(t * 9 + n.ph); n.g.position.y = Math.abs(b) * .32; n.arms[0].rotation.x = -2.6 + b * .5; n.arms[1].rotation.x = -2.6 - b * .5; n.legs[0].rotation.x = b * .5; n.legs[1].rotation.x = -b * .5; n.g.rotation.y = n.yaw + Math.sin(t * 2 + n.ph) * .6; }); if (d < 40 && frame % 40 === 0) burst(h.x, 1.2, h.z, 2, ["#7b5cff", "#ff5d8f", "#41d3c9"], 2); }
+    if (h.k === "cricket") {
+      const p = (t % 3.4) / 3.4, B = h.bowler, run = clamp(p / .3, 0, 1), bq = { x: B.x, z: B.z }, home = { x: h.bat.x, z: h.bat.z };
+      const bp = (lz) => ({ x: h.x + lz * Math.sin(h.th), z: h.z + lz * Math.cos(h.th) });
+      const bpos = bp(14 - run * 3); B.g.position.set(bpos.x, Math.abs(Math.sin(run * 20)) * .15 * (run < 1 ? 1 : 0), bpos.z); B.legs[0].rotation.x = Math.sin(run * 20) * .6 * (run < 1); B.legs[1].rotation.x = -B.legs[0].rotation.x;
+      B.arms[1].rotation.x = p > .22 && p < .34 ? -(p - .22) / .12 * TAU : 0;
+      const swing = clamp((p - .47) / .06, 0, 1) * (p < .85 ? 1 : 0); h.bat.arms.forEach(a => a.rotation.x = -.5 - swing * 2.3); h.bat.arms[1].rotation.z = .3;
+      h.keeper.legs.forEach(l => l.rotation.x = -.9); h.keeper.g.position.y = -.25; h.keeper.arms.forEach(a => a.rotation.x = -1.3);
+      let bx, by, bz; const b11 = bp(11);
+      if (p < .32) { bx = b11.x; bz = b11.z; by = -5; }
+      else if (p < .5) { const k = (p - .32) / .18; bx = b11.x + (home.x - b11.x) * k; bz = b11.z + (home.z - b11.z) * k; by = 2 - k * 1.2 + (k > .7 ? 0 : 0) - Math.abs(Math.sin(k * Math.PI * 1.4)) * .8 + .4; }
+      else { const k = (p - .5) / .5, dir = h.th + Math.PI + Math.sin(Math.floor(t / 3.4) * 7.3) * 1.2; bx = home.x + Math.sin(dir) * k * 30; bz = home.z + Math.cos(dir) * k * 30; by = 1 + Math.sin(k * Math.PI) * 9; }
+      h.ball.visible = by > -1; h.ball.position.set(bx, Math.max(.13, by), bz);
+      h.field.arms.forEach(a => a.rotation.x = -.8 + Math.sin(t * 2) * .2);
+    }
+    if (h.k === "chai") A0.forEach((n, i) => { const s = Math.max(0, Math.sin(t * .8 + i * 2.1)); n.arms[1].rotation.x = -2.2 * s ** 4; n.head.rotation.x = Math.sin(t * 1.5 + n.ph) * .08; if (h.ai === i && h.sayT > 2) n.g.rotation.z = Math.sin(t * 25) * .03; });
+    if (h.k === "selfie") { A0.forEach((n, i) => { n.arms[1].rotation.x = i === 2 ? -2.7 : -2.3 + Math.sin(t * 3 + i) * .1; n.arms[1].rotation.z = i === 2 ? .2 : .5; n.head.rotation.z = Math.sin(Math.floor(t / 4) * 3 + i) * .25; }); h.flash.visible = (t % 4) < .12; }
+    if (h.k === "yoga") { const pose = Math.floor(t / 4) % 4, all = [...A0]; all.forEach((n, i) => {
+      if (pose === 0) { n.arms.forEach(a => a.rotation.x = -3); }
+      else if (pose === 1) { n.arms.forEach(a => a.rotation.x = -3); n.g.rotation.z = .35 * Math.sin(t * .8); }
+      else if (pose === 2) { n.arms[0].rotation.z = -1.5; n.arms[1].rotation.z = 1.5; n.legs[0].rotation.z = -.4; n.legs[1].rotation.z = .4; }
+      else { n.arms.forEach(a => a.rotation.x = -3); n.legs[1].rotation.x = -1.1; n.legs[1].rotation.z = .9; if (i === 1) n.g.rotation.z = Math.sin(t * 6) * .08; } }); }
+    if (h.k === "band") { h.drum.arms.forEach((a, i) => a.rotation.x = -1.2 + Math.sin(t * 16 + i * Math.PI) * .45); h.drum.head.rotation.x = Math.sin(t * 8) * .12;
+      h.gtr.arms[1].rotation.x = -.9 + Math.sin(t * 12) * .3; h.gtr.arms[0].rotation.x = -1.3; h.gtr.g.rotation.z = Math.sin(t * 4) * .05;
+      h.sing.arms[1].rotation.x = -1.6 + Math.sin(t * 2) * .3; h.sing.arms[0].rotation.z = -.5 - Math.abs(Math.sin(t * 1.3)) * .7; h.sing.head.rotation.x = -.15 * Math.abs(Math.sin(t * .9));
+      if (d < 40 && frame % 30 === 0) burst(h.x, 2, h.z, 2, ["#ffd166", "#7b5cff"], 2); }
+    if (h.k === "argue") A0.forEach((n, i) => { if (h.joinT > 0) { n.arms.forEach(a => a.rotation.x = -1.4); n.g.rotation.y = n.yaw; } else { n.arms[0].rotation.x = -1.4 + Math.sin(t * 7 + i * 2) * 1; n.arms[1].rotation.z = .6 + Math.sin(t * 9 + i) * .5; n.g.rotation.y = n.yaw + Math.sin(t * 3 + i) * .25; n.g.position.y = Math.abs(Math.sin(t * 6 + i)) * .08; } });
+    // banter bubbles while you're close
+    if (d < 24 && started) {
+      if ((h.sayT -= dt) <= 0) { h.sayT = 3.4; h.ai = (h.ai + 1) % A0.length; const pool = h.joinT > 0 ? h.joined : h.lines; h.bub.say(pool[h.li++ % pool.length]); h.bub.visible = true; }
+      const n = A0[h.ai]; h.bub.position.set(n.g.position.x, n.g.position.y + 3.6, n.g.position.z);
+    } else h.bub.visible = false;
+  }
+}
+function joinHang(h) {
+  Q.hang.add(h.k); renderQuests(); h.joinT = 8; h.sayT = 0; toast(h.join);
+  if (h.k === "dance" || h.k === "band") playEmote(myEmo, player, 4); else if (h.k === "selfie") { playEmote(myEmo, player, 3); h.flash.visible = true; A.sfx("click"); } else if (h.k === "argue") playEmote(myEmo, player, 2); else playEmote(myEmo, player, 1);
+  if (h.k === "chai") buffT = 15;
+  if (h.k === "cricket") { A.sfx("kick"); burst(h.bat.x, 2, h.bat.z, 16, ["#c0392b", "#ffffff"], 8); }
+  burst(h.x, 2, h.z, 18, ["#ffd166", "#ff5d8f", "#41d3c9"], 5);
 }
 
 /* ---------- football ---------- */
@@ -541,14 +715,14 @@ $("#act2").addEventListener("click", () => dialogOpen ? next() : action2());
 
 /* ---------- missions ---------- */
 const projZones = zones.filter(z => z.kind === "project"), placeZones = zones.filter(z => ["skills", "hobbies", "journey"].includes(z.kind));
-const Q = { hi: false, proj: new Set(), places: new Set(), done: false, tokens: 0, bugs: 0, bike: false, car: false, goal: false, games: new Set(), air: false, coffee: false };
+const Q = { hi: false, proj: new Set(), places: new Set(), done: false, tokens: 0, bugs: 0, bike: false, car: false, goal: false, games: new Set(), hang: new Set(), air: false, coffee: false };
 const TOKEN_GOAL = 30;
 const PROJ_GOAL = Math.min(6, projZones.length); // 14+ projects is too many to require; any 6 unlock the finale
 const unlocked = () => Q.proj.size >= PROJ_GOAL;
 const sideList = () => [
   [Q.tokens >= TOKEN_GOAL, `Collect ${TOKEN_GOAL} tokens (${Math.min(Q.tokens, TOKEN_GOAL)}/${TOKEN_GOAL})`], [Q.bugs >= bugs.length, `Squash bugs (${Q.bugs}/${bugs.length})`],
   [Q.bike, "Ride a bike"], [Q.car, "Drive a car"],
-  [Q.games.size >= 3, `Play 3 of my mini-games (${Math.min(Q.games.size, 3)}/3)`], [Q.goal, "Score a goal"], [Q.air, "Get 1s of airtime off a ramp"], [Q.coffee, "Drink filter coffee"]];
+  [Q.hang.size >= 3, `Join 3 hangouts (${Math.min(Q.hang.size, 3)}/3)`], [Q.games.size >= 3, `Play 3 of my mini-games (${Math.min(Q.games.size, 3)}/3)`], [Q.goal, "Score a goal"], [Q.air, "Get 1s of airtime off a ramp"], [Q.coffee, "Drink filter coffee"]];
 let sideOpen = true;
 function renderQuests() {
   const li = (done, txt, locked) => `<li class="${done ? "done" : ""} ${locked ? "locked" : ""}"><span>${done ? "✅" : locked ? "🔒" : "⬜"}</span><span>${txt}</span></li>`;
@@ -664,6 +838,7 @@ function findTarget() {
   if (driving) { if (Math.abs(driving.speed) < 9) for (const z of zones) c("zone", z, z.x, z.z, z.r + 3, `Talk — ${z.title}`); return best; }
   for (const z of zones) c("zone", z, z.x, z.z, z.r + 1.5, `Talk — ${z.title}${z.visited ? " ✓" : ""}`);
   for (const z of zones) if (z.cab) c("game", z, z.cab.x, z.cab.z, 2.6, `Play ${z.title} 🕹️`);
+  for (const h of hangouts) c("hang", h, h.x, h.z, h.r + 2, `Join the ${h.title} ${h.icon}`);
   for (const n of npcs) c("npc", n, n.x, n.z, 2.8, `Chat — ${n.name}`);
   for (const w of cows) c("cow", w, w.x, w.z, 3.4, "Say hi to the cow 🐄");
   for (const s of signs) c("sign", s, s.x, s.z, 2.6, "Read the sign");
@@ -680,6 +855,7 @@ function interact() {
   if (t.type === "zone") { if (driving) driving.speed = 0; talk(t.obj); }
   else if (t.type === "npc") npcTalk(t.obj);
   else if (t.type === "game") openArcade(t.obj);
+  else if (t.type === "hang") joinHang(t.obj);
   else if (t.type === "cow") { A.sfx("moo"); toast(`🐄 ${pick(WD.cow || ["Moo."])}`); }
   else if (t.type === "sign") openDialog([t.obj.text], null, "Signpost");
   else if (t.type === "stall") { buffT = 20; Q.coffee = true; A.sfx("coin"); burst(stall.x, 2, stall.z, 16, ["#c9b38c", "#ffffff"], 4); toast(`☕ ${pick(WD.coffee || ["Coffee! Speed boost."])}`); renderQuests(); }
@@ -719,6 +895,9 @@ function dayNight(t) {
   hemi.intensity = a[2] + (b[2] - a[2]) * f; sun.intensity = a[3] + (b[3] - a[3]) * f; night = a[4] + (b[4] - a[4]) * f;
   const gb = BLOOM ? 1 + night * 2.6 : 1; lampMat.color.copy(lampOff).lerp(lampOn, night).multiplyScalar(gb); glowMats.forEach(m => m.color.copy(winDay).lerp(lampOn, night).multiplyScalar(gb));
   cloudShade.material.opacity = .2 * (1 - night);
+  { const dayP = ((t - .92 + 1) % 1) / .62, el = dayP < 1 ? Math.sin(dayP * Math.PI) * .95 + .02 : -.25, az = dayP * Math.PI + .6; // sunrise ~.92, sunset ~.54
+    sunDir.set(Math.cos(az) * Math.cos(el), Math.sin(el), Math.sin(az) * Math.cos(el)).normalize(); sky.material.uniforms.sunPosition.value.copy(sunDir);
+    sun.color.setHSL(.09, .6 + .3 * (1 - Math.min(1, el * 3)), .88); }
   $("#tod").textContent = night > .5 ? "🌙" : f > 0 && a[4] !== b[4] ? "🌇" : "☀️";
 }
 
@@ -983,6 +1162,7 @@ function tick(now) {
     if (hit) { const nl = Math.hypot(nx, nz); if (nl > 1e-5) { const imp = bounce(nx / nl, nz / nl, .25); v.vx *= .85; v.vz *= .85; if (imp > 9 && crashCool < 0) { crashCool = .8; burst(v.x + fx * v.r, .6, v.z + fz * v.r, 8, ["#e9e2d0", "#ffffff"], 3); } } }
     const push = (cx, cz, m) => { const dx = v.x - cx, dz = v.z - cz, d = Math.hypot(dx, dz); if (d >= m || d < 1e-3) return 0; v.x = cx + dx / d * m; v.z = cz + dz / d * m; return bounce(dx / d, dz / d, .3); };
     for (const o of vehicles) if (o !== v) push(o.x, o.z, v.r + o.r);
+    for (const o of traffic) push(o.x, o.z, v.r + o.r);
     for (const c of cows) if (push(c.x, c.z, v.r + 1.3) > 5 && crashCool < 0) { crashCool = 2; A.sfx("moo"); toast("🐄 The cow wins. The cow always wins."); }
     v.speed = v.vx * Math.sin(v.yaw) + v.vz * Math.cos(v.yaw);
     const lean = Math.min(1, Math.abs(v.speed) / 10);
@@ -1005,6 +1185,7 @@ function tick(now) {
     if (groundAt(me.x, me.z) - me.y > .6) { me.x = ox; me.z = oz; }
     for (const n of npcs) if (!n.kv) sep(me, n, 1.15, .45);
     for (const c of cows) sep(me, c, 1.9, 1);
+    for (const n of crowd) sep(me, n, 1.1, 1);
     avoidVehicles(me, .6); pushOut(me, .7);
     vertical(me, dt);
     player.position.set(me.x, me.y, me.z);
@@ -1102,6 +1283,7 @@ function tick(now) {
   floaters.forEach((f, i) => f.position.y += Math.sin(clock * 2 + i) * .004);
   for (const z of zones) if (z.flag) z.flag.rotation.z = unlocked() ? -1.2 : 0;
   if (frame % 10 === 0) dayNight(((clock / DAY) + .08) % 1);
+  trafficTick(dt); hangTick(dt); windU.value = clock; GRASS.update(me.x, me.z);
   netTick(dt, now);
   // ----- proximity / prompt / HUD
   if (frame % 4 === 0) {
@@ -1113,13 +1295,13 @@ function tick(now) {
       pr.textContent = driving ? (target ? `${kE} — ${target.label} · ` : "") + (touch ? "💬 exit · 📯 honk" : "F exit · H honk · Shift boost") : `${kE} — ${target.label}`;
       pr.classList.add("show");
     } else pr.classList.remove("show");
-    $("#act").textContent = driving && !target ? "🚪" : target?.type === "vehicle" ? "🚗" : target?.type === "game" ? "🕹️" : target?.type === "stall" ? "☕" : "💬";
+    $("#act").textContent = driving && !target ? "🚪" : target?.type === "vehicle" ? "🚗" : target?.type === "game" ? "🕹️" : target?.type === "hang" ? "🎉" : target?.type === "stall" ? "☕" : "💬";
     $("#act2").textContent = driving ? "📯" : "⤴";
     $("#boost").hidden = !(buffT > 0);
   }
   if (frame % 8 === 0) drawMini();
   if (started && frame % 30 === 0) { elapsed = (now - t0) / 1000; $("#timer").textContent = fmt(elapsed); }
-  if (SHADOWS) { const sx = me.x - Math.sin(camYaw) * 22, sz = me.z - Math.cos(camYaw) * 22; sun.position.set(sx + 30, 60, sz + 20); sun.target.position.set(sx, 0, sz); } // shadows cover what you look at
+  if (SHADOWS) { const sx = me.x - Math.sin(camYaw) * 22, sz = me.z - Math.cos(camYaw) * 22, sd = sunDir.y > .08 ? sunDir : _sd.set(.4, .5, .3).normalize(); sun.position.set(sx + sd.x * 80, sd.y * 80, sz + sd.z * 80); sun.target.position.set(sx, 0, sz); } // shadows cover what you look at
   // ----- third-person camera: orbits Jack (drag to look), lazily swings behind where you're heading, pulls back with speed
   { const v = driving, spd = Math.abs(mover.speed || 0), kz = Math.min(1, spd / 26), manual = clock - camT < (v ? 1.2 : 2.2);
     const sp2 = Math.hypot(vx, vz), away = sp2 > .5 ? Math.max(0, -(vx * Math.sin(camYaw) + vz * Math.cos(camYaw)) / sp2) : 0; // only swing behind when walking away from the camera, never while strafing
@@ -1143,7 +1325,8 @@ function camClear(fx, fz, ox, oz) {
     for (const c of nearCols(x, z)) if (c.box ? Math.abs(x - c.x) < c.hw + .3 && Math.abs(z - c.z) < c.hd + .3 : c.r > 1.2 && Math.hypot(x - c.x, z - c.z) < c.r + .3) return Math.max(.3, t - .15); }
   return 1;
 }
-function avoidVehicles(o, r) { for (const v of vehicles) { if (v === driving) continue; const dx = o.x - v.x, dz = o.z - v.z, d = Math.hypot(dx, dz), m = v.r + r; if (d < m && d > 1e-3) { o.x = v.x + dx / d * m; o.z = v.z + dz / d * m; } } }
+const _sd = new THREE.Vector3();
+function avoidVehicles(o, r) { for (const v of traffic) { const dx = o.x - v.x, dz = o.z - v.z, d = Math.hypot(dx, dz), m = v.r + r; if (d < m && d > 1e-3) { o.x = v.x + dx / d * m; o.z = v.z + dz / d * m; } } for (const v of vehicles) { if (v === driving) continue; const dx = o.x - v.x, dz = o.z - v.z, d = Math.hypot(dx, dz), m = v.r + r; if (d < m && d > 1e-3) { o.x = v.x + dx / d * m; o.z = v.z + dz / d * m; } } }
 function lerpA(a, b, t) { return a + angDiff(b, a) * t; }
 function resize() { renderer.setSize(innerWidth, innerHeight, false); composer?.setSize(innerWidth, innerHeight); cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix(); }
 addEventListener("resize", resize); resize();
@@ -1153,4 +1336,4 @@ scene.traverse(o => { if (!o.isMesh) return; o.receiveShadow = true; if (!SHADOW
 dayNight(.08); renderQuests(); drawMini();
 $("#loading").remove();
 raf = requestAnimationFrame(tick);
-if (url.searchParams.has("debug")) window.__world = { get remotes() { return remotes; }, get mp() { return mp; }, get duo() { return duo; }, get frame() { return frame; }, pen: (x, z, r) => { const o = { x, z }; pushOut(o, r); return Math.hypot(o.x - x, o.z - z); }, rampY: (x, z) => groundAt(x, z), ramps, get near() { return target?.type === "zone" ? target.obj : null; }, get target() { return target; }, zones, bugs, tokens, vehicles, npcs, ball, pitch, Q, me, tp: (x, z) => { if (driving) { driving.x = x; driving.z = z; } else { me.x = x; me.z = z; } }, enter: v => enterVehicle(v), exit: () => exitVehicle(), get driving() { return driving; }, talk: z => talk(z), next: () => next(), get dialogOpen() { return dialogOpen; }, keys, emote, myEmo, arcade, get cam() { return { yaw: camYaw, pitch: camPitch, k: camK }; }, setCam: (y, p) => { camYaw = y; camPitch = p; camT = clock; }, play: id => openArcade(zones.find(z => z.p?.id === id)), respawn, tod: t => { clock = ((t - .08 + 1) % 1) * DAY; }, get clock() { return clock; }, get zoom() { return zoom; }, set zoom(z) { zoom = z; } };
+if (url.searchParams.has("debug")) window.__world = { get remotes() { return remotes; }, get mp() { return mp; }, get duo() { return duo; }, get frame() { return frame; }, pen: (x, z, r) => { const o = { x, z }; pushOut(o, r); return Math.hypot(o.x - x, o.z - z); }, rampY: (x, z) => groundAt(x, z), ramps, get near() { return target?.type === "zone" ? target.obj : null; }, get target() { return target; }, zones, bugs, tokens, vehicles, npcs, ball, pitch, Q, me, tp: (x, z) => { if (driving) { driving.x = x; driving.z = z; } else { me.x = x; me.z = z; } }, enter: v => enterVehicle(v), exit: () => exitVehicle(), get driving() { return driving; }, talk: z => talk(z), next: () => next(), get dialogOpen() { return dialogOpen; }, keys, emote, myEmo, arcade, traffic, hangouts, join: h => joinHang(h), get cam() { return { yaw: camYaw, pitch: camPitch, k: camK }; }, setCam: (y, p) => { camYaw = y; camPitch = p; camT = clock; }, play: id => openArcade(zones.find(z => z.p?.id === id)), respawn, tod: t => { clock = ((t - .08 + 1) % 1) * DAY; }, get clock() { return clock; }, get zoom() { return zoom; }, set zoom(z) { zoom = z; } };

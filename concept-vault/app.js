@@ -112,7 +112,7 @@
   }
 
   /* ---------- DETAIL ---------- */
-  const SECS = [["concept", "Concept & description"], ["audience", "Target audience"], ["fiction", "World & fiction"], ["pov", "Player POV gameplay"], ["usp", "USP"], ["loop", "Core loop"], ["experience", "Player experience"], ["systems", "Game systems"], ["interact", "Interactivity"], ["visual", "Visual & audio style"], ["tech", "Technology"], ["scope", "Scope & roadmap"], ["money", "Monetization"], ["research", "Research & references"]];
+  const SECS = [["concept", "Concept & description"], ["audience", "Target audience"], ["fiction", "World & fiction"], ["pov", "Player POV gameplay"], ["shots", "Concept shots"], ["usp", "USP"], ["loop", "Core loop"], ["experience", "Player experience"], ["systems", "Game systems"], ["interact", "Interactivity"], ["visual", "Visual & audio style"], ["tech", "Technology"], ["scope", "Scope & roadmap"], ["money", "Monetization"], ["research", "Research & references"]];
   function loopSVG(steps) {
     const n = steps.length, cx = 210, cy = 210, R0 = 150;
     let s = `<svg viewBox="0 0 420 420" role="img" aria-label="Core loop with ${n} steps">`;
@@ -149,6 +149,7 @@
       concept: `<div class="desc">${(EX.desc || []).map(p => `<p>${esc(p)}</p>`).join("")}</div><div class="kv"><div>Elevator pitch</div><div>${esc(c.logline)}</div><div>Genre</div><div>${esc(c.genre)}</div><div>Platform</div><div>${esc(c.platform)}</div><div>Players</div><div>${esc(c.players)}</div><div>Space needed</div><div>${esc(c.space)} <span style="color:var(--dim)">(within a 5×5 m room)</span></div><div>Session length</div><div>${esc(c.session)}</div></div>`,
       audience: `<div class="two" style="margin-bottom:12px"><div class="mini"><span class="k">Primary</span><b>${esc(c.audience.primary)}</b></div><div class="mini"><span class="k">Secondary</span><b>${esc(c.audience.secondary)}</b></div></div><div class="cards3">${c.audience.personas.map(([n, d]) => `<div class="mini"><span class="k">Persona</span><b>${esc(n)}</b><span>${esc(d)}</span></div>`).join("")}</div>`,
       fiction: `<p style="font-size:18px;line-height:1.65">${esc(c.fiction)}</p>`,
+      shots: window.SHOTS_HTML ? window.SHOTS_HTML(c) : "",
       pov: `<p class="pov-intro">One complete session, seen through the player's eyes. Timestamps are approximate; the highlighted beat is the moment to show the jury live.</p><ol class="pov">${(EX.pov || []).map(([tm, h, p], k) => `<li class="${k === EX.demo ? "demo" : ""}"><span class="tm">${esc(tm)}</span><div><h3>${esc(h)}</h3><p>${esc(p)}</p>${k === EX.demo ? '<span class="dm">Jury demo moment</span>' : ""}</div></li>`).join("")}</ol>`,
       usp: `<div class="usp-h">${esc(c.uspHead)}</div><ol class="usp-l">${c.usp.map(u => `<li>${esc(u)}</li>`).join("")}</ol>`,
       loop: `<div class="loopwrap">${loopSVG(c.loop)}<ol class="loop-l">${c.loop.map((st, k) => `<li data-i="${k}"><b>0${k + 1}</b><span>${esc(st)}</span></li>`).join("")}<li style="border-style:dashed;color:var(--dim)"><b>↻</b><span>Repeat with rising difficulty</span></li></ol></div>`,
@@ -190,6 +191,7 @@
     const i = C.indexOf(c); app.innerHTML = detailHTML(c, i); setTheme(c.accent, c.accent2); setBg(c.theme);
     $("#crumb").innerHTML = `<em>${c.num}</em> / ${esc(c.title)}`;
     scramble($("#dtitle"));
+    if (window.SHOTS_MOUNT) window.SHOTS_MOUNT(c, Stage, cleanup);
     const links = $$(".toc a"); links.forEach(a => a.addEventListener("click", e => { e.preventDefault(); const t = $("#s-" + a.dataset.sec); t && t.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" }); A.click(); }));
     const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { const k = e.target.id.slice(2); links.forEach(a => a.classList.toggle("on", a.dataset.sec === k)); } }), { rootMargin: "-40% 0px -55% 0px" });
     $$(".sec").forEach(s => io.observe(s)); cleanup.push(() => io.disconnect());

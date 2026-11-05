@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Concept Vault</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anybody:wdth,wght@50..150,100..900&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  .lnode circle { transition: fill .3s; }
+  .lnode.on circle { fill: var(--accent); filter: drop-shadow(0 0 10px var(--accent)); }
+  .lnode.on text { fill: #000; }
+</style>
+</head>
+<body>
+<canvas id="bg" aria-hidden="true"></canvas>
+<div id="veil"></div>
+<div id="grain"></div>
+
+<header class="top">
+  <a class="brand" href="#vault" id="home"><span class="sq"></span><span><b>Concept Vault</b><span class="yr"> · FYP 2026</span></span></a>
+  <span class="crumb" id="crumb"></span>
+  <span class="sp"></span>
+  <button class="tbtn" id="snd" aria-pressed="true" title="Toggle sound effects"><span class="dot"></span><span id="sndl">Sound on</span></button>
+  <button class="tbtn" id="fs" title="Full screen for presenting">Full screen</button>
+</header>
+
+<main id="app"></main>
+
+<div id="shutter" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+<div id="shtext" aria-hidden="true"></div>
+
+<div id="boot" role="presentation">
+  <div>
+    <div class="bt">Concept<br>Vault</div>
+    <pre id="bootlog"></pre>
+    <div class="meter"><i></i></div>
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script src="extra.js"></script>
+<script src="fx.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

@@ -8,8 +8,10 @@
   const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) { } } };
   if (store.get("vault-sfx") === "off") A.on = false;
 
-  const CAT = { Educational: "Learning", Awareness: "Learning", AR: "AR", VR: "VR", IoT: "IoT" };
-  const PLAT = { "fake-feed": "Any web browser", "water-debt": "TV + players' phones", "x-ray-mirror": "Laptop + webcam + TV", "defuse-the-table": "2–3 ARCore phones", "time-window": "1 ARCore phone", "out-of-body": "VR box + 3 tripod phones", "block-party": "Laptop + webcam + TV", "live-wire": "ESP32 + laptop", "house-is-listening": "Smart home + visitor's phone", "sixth-sense": "Galaxy Watch 4 + TV" };
+  const CAT = { Educational: "Learning", Awareness: "Learning", AR: "AR", VR: "VR", IoT: "IoT", Studio: "Studio" };
+  const WORD = ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen"];
+  const ROOMN = C.filter(c => c.cat !== "Studio").length, STUDION = C.length - ROOMN;
+  const PLAT = { "fake-feed": "Any web browser", "water-debt": "TV + players' phones", "x-ray-mirror": "Laptop + webcam + TV", "defuse-the-table": "2–3 ARCore phones", "time-window": "1 ARCore phone", "out-of-body": "VR box + 3 tripod phones", "block-party": "Laptop + webcam + TV", "live-wire": "ESP32 + laptop", "house-is-listening": "Smart home + visitor's phone", "sixth-sense": "Galaxy Watch 4 + TV", "my-gecko": "Android phone (offline)", "magzzele": "2 PCs · Steam P2P", "heap": "PC client + .NET servers" };
 
   /* ---------- theme + background ---------- */
   function setTheme(accent, accent2) { root.style.setProperty("--accent", accent); root.style.setProperty("--accent2", accent2); }
@@ -53,15 +55,15 @@
     <section class="wrap hero enter">
       <div class="hl">
         <div class="eyebrow"><span>Final year project</span><i></i><span>Concept pitch</span><i></i><span>Jury review</span></div>
-        <h1 class="mega" id="mega"><span class="ln a">Ten worlds.</span><span class="ln b">One gets built.</span></h1>
+        <h1 class="mega${(WORD[C.length] || "").length > 6 ? " long" : ""}" id="mega"><span class="ln a">${WORD[C.length] || C.length} worlds.</span><span class="ln b">One gets built.</span></h1>
       </div>
       <div>
-        <p class="lede">Ten playable concepts across learning, awareness, AR, VR and IoT, each designed to fit one 5×5 m room. Open any card for its full game design document, prototype plan and research references.</p>
+        <p class="lede">${WORD[ROOMN]} playable concepts across learning, awareness, AR, VR and IoT, each designed to fit one 5×5 m room, plus ${WORD[STUDION].toLowerCase()} studio projects already in development. Open any card for its full game design document, prototype plan and research references.</p>
         <div class="stats">
-          <div class="stat"><b class="tnum">10</b><span>Concepts</span></div>
+          <div class="stat"><b class="tnum">${C.length}</b><span>Concepts</span></div>
           <div class="stat"><b class="tnum">3</b><span>Learning &amp; awareness</span></div>
-          <div class="stat"><b class="tnum">3</b><span>XR · 2 AR + 1 VR</span></div>
-          <div class="stat"><b class="tnum">4</b><span>IoT &amp; mixed reality</span></div>
+          <div class="stat"><b class="tnum">7</b><span>XR + IoT · 2 AR, 1 VR, 4 IoT</span></div>
+          <div class="stat"><b class="tnum">${STUDION}</b><span>Studio projects</span></div>
         </div>
       </div>
       <aside class="room" id="room"><h3><span>Installation floor plan</span><span>1 square = 1 m</span></h3>${roomSVG()}
@@ -73,19 +75,19 @@
     <section class="wrap">
       <div class="bar"><h2>The concepts</h2>
         <div class="filters" role="group" aria-label="Filter concepts">
-          ${["All", "Learning", "AR", "VR", "IoT"].map((f, i) => `<button class="chip" data-f="${f}" aria-pressed="${i === 0}">${f === "Learning" ? "Learning &amp; awareness" : f}</button>`).join("")}
+          ${["All", "Learning", "AR", "VR", "IoT", "Studio"].map((f, i) => `<button class="chip" data-f="${f}" aria-pressed="${i === 0}">${f === "Learning" ? "Learning &amp; awareness" : f === "Studio" ? "Studio projects" : f}</button>`).join("")}
         </div></div>
       <div class="grid" id="grid">${cards}</div>
       <div class="matrix">
         <div class="hd"><h2>Jury matrix</h2><small>Designer's self-assessment, 1–5 per criterion. Click a row to open the concept.</small></div>
         <div class="mtable"><table class="m"><thead><tr><th>#</th><th>Concept</th><th>Type</th><th>Players</th><th>Novelty</th><th>Prototype feasibility</th><th>Demo wow</th><th>Social impact</th><th>Total</th></tr></thead><tbody>${rows}</tbody></table></div>
       </div>
-      <div class="foot"><span>${refs} research references across 10 GDDs</span><span>Present with <kbd>←</kbd> <kbd>→</kbd> · <kbd>Esc</kbd> for the hub · click the background to play with it</span></div>
+      <div class="foot"><span>${refs} research references across ${C.length} GDDs</span><span>Present with <kbd>←</kbd> <kbd>→</kbd> · <kbd>Esc</kbd> for the hub · click the background to play with it</span></div>
     </section>`;
   }
   function mountHub() {
     app.innerHTML = hubHTML(); setTheme("#ecebe6", "#9a99a3"); setBg("hub");
-    $("#crumb").innerHTML = "10 concepts · <em>1 room</em>";
+    $("#crumb").innerHTML = `${C.length} concepts · <em>1 room + studio</em>`;
     const io = new IntersectionObserver(es => es.forEach(e => { const s = e.target._stage; if (s) s.visible = e.isIntersecting; }), { rootMargin: "100px" });
     $$("#grid canvas").forEach(cv => { const s = new Stage(cv, cv.dataset.theme, { auto: true, dpr: 1.25, idx: +cv.dataset.i }); cv._stage = s; cardStages.push(s); io.observe(cv); });
     cleanup.push(() => io.disconnect());
@@ -146,7 +148,7 @@
     let gi = 0, pi = 0;
     const ref = (r, pre) => { const [t, src, note, url] = r; const inner = `<span class="ix">${pre}</span><span><b>${esc(t)}</b><span class="src">${esc(src)}</span><span class="nt">${esc(note)}</span></span><span class="out">${url ? "Open ↗" : "Title only"}</span>`; return url ? `<a class="ref" href="${esc(url)}" target="_blank" rel="noopener">${inner}</a>` : `<div class="ref">${inner}</div>`; };
     const S = {
-      concept: `<div class="desc">${(EX.desc || []).map(p => `<p>${esc(p)}</p>`).join("")}</div><div class="kv"><div>Elevator pitch</div><div>${esc(c.logline)}</div><div>Genre</div><div>${esc(c.genre)}</div><div>Platform</div><div>${esc(c.platform)}</div><div>Players</div><div>${esc(c.players)}</div><div>Space needed</div><div>${esc(c.space)} <span style="color:var(--dim)">(within a 5×5 m room)</span></div><div>Session length</div><div>${esc(c.session)}</div></div>`,
+      concept: `<div class="desc">${(EX.desc || []).map(p => `<p>${esc(p)}</p>`).join("")}</div><div class="kv"><div>Elevator pitch</div><div>${esc(c.logline)}</div><div>Genre</div><div>${esc(c.genre)}</div><div>Platform</div><div>${esc(c.platform)}</div><div>Players</div><div>${esc(c.players)}</div><div>Space needed</div><div>${esc(c.space)}${c.cat === "Studio" ? "" : ` <span style="color:var(--dim)">(within a 5×5 m room)</span>`}</div><div>Session length</div><div>${esc(c.session)}</div></div>`,
       audience: `<div class="two" style="margin-bottom:12px"><div class="mini"><span class="k">Primary</span><b>${esc(c.audience.primary)}</b></div><div class="mini"><span class="k">Secondary</span><b>${esc(c.audience.secondary)}</b></div></div><div class="cards3">${c.audience.personas.map(([n, d]) => `<div class="mini"><span class="k">Persona</span><b>${esc(n)}</b><span>${esc(d)}</span></div>`).join("")}</div>`,
       fiction: `<p style="font-size:18px;line-height:1.65">${esc(c.fiction)}</p>`,
       pov: `<p class="pov-intro">One complete session, seen through the player's eyes. Timestamps are approximate; the highlighted beat is the moment to show the jury live.</p><ol class="pov">${(EX.pov || []).map(([tm, h, p], k) => `<li class="${k === EX.demo ? "demo" : ""}"><span class="tm">${esc(tm)}</span><div><h3>${esc(h)}</h3><p>${esc(p)}</p>${k === EX.demo ? '<span class="dm">Jury demo moment</span>' : ""}</div></li>`).join("")}</ol>`,
@@ -164,7 +166,7 @@
     return `
     <section class="wrap dhero enter">
       <div class="bignum" aria-hidden="true">${c.num}</div>
-      <div class="row"><span class="pill">${c.cat}</span><span class="pill" style="border-color:var(--line);color:var(--dim)">Concept ${c.num} / 10</span></div>
+      <div class="row"><span class="pill">${c.cat}</span><span class="pill" style="border-color:var(--line);color:var(--dim)">Concept ${c.num} / ${C.length}</span></div>
       <h1 class="dtitle" id="dtitle">${esc(c.title)}</h1>
       <p class="dtag">${esc(c.tagline)}</p>
       <p class="dlog">${esc(c.logline)}</p>
@@ -251,7 +253,7 @@
   const boot = $("#boot");
   if (reduce) boot.classList.add("done");
   else {
-    const pre = $("#bootlog"), lines = ["> mounting concept vault", "> loading 10 game design documents", "> calibrating webcams, watches and smart bulbs", "> 5×5 m room ready"]; let k = 0;
+    const pre = $("#bootlog"), lines = ["> mounting concept vault", "> loading " + C.length + " game design documents", "> calibrating webcams, watches and smart bulbs", "> 5×5 m room ready"]; let k = 0;
     const tick = setInterval(() => { if (k < lines.length) { pre.textContent += (k ? "\n" : "") + lines[k] + "  ok"; k++; } else clearInterval(tick); }, 260);
     requestAnimationFrame(() => $("#boot .meter i").style.width = "100%");
     const end = () => { boot.classList.add("done"); clearInterval(tick); };

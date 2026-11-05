@@ -65,6 +65,7 @@ p { margin: 0; }
 .mega { font-family: var(--display); font-weight: 800; text-transform: uppercase; line-height: .86; letter-spacing: -.01em; margin: 18px 0 22px;
   font-size: clamp(40px, 10.2vw, 148px); font-variation-settings: "wdth" var(--w, 100); }
 .mega .ln { display: block; }
+.mega.long { font-size: clamp(36px, 8.6vw, 126px); }
 @media (min-width: 681px) { .mega .ln { white-space: nowrap; } }
 .mega .ln.b { color: transparent; -webkit-text-stroke: 1.5px var(--paper); }
 .mega .ch { display: inline-block; transition: font-variation-settings .35s cubic-bezier(.2,.8,.2,1), color .3s; font-variation-settings: "wdth" var(--cw, 100); }

@@ -12,7 +12,7 @@
 
   /* ---------------- HUB: constellation of 10 accents ---------------- */
   R.hub = () => {
-    const cols = ["#ff2e88", "#39d0c8", "#5cc8ff", "#ffd60a", "#b388ff", "#ff453a", "#ffcc33", "#ffe14d", "#ffd9a0", "#3dffb5", "#7ee081", "#ff7a90", "#39ff88"];
+    const cols = ["#ff2e88", "#39d0c8", "#5cc8ff", "#ffd60a", "#b388ff", "#ff453a", "#ffcc33", "#ffe14d", "#ffd9a0", "#3dffb5", "#7ee081", "#ff7a90", "#39ff88", "#ffb627"];
     let P = [];
     return {
       init(w, h) { P = []; const n = Math.round(clamp(w * h / 14000, 40, 120)); for (let i = 0; i < n; i++) P.push({ x: rnd(0, w), y: rnd(0, h), vx: rnd(-8, 8), vy: rnd(-14, -4), r: rnd(1, 2.6), c: cols[i % cols.length] }); },
@@ -610,6 +610,66 @@
     };
   };
 
+  /* ---------------- 14 KAATRU ---------------- */
+  R.sea = () => {
+    let sc = 1, wind = -2.4, wTarget = -2.4, streaks = [], boats = [], ripples = [], beatT = 0, beatPulse = 0;
+    const COLS = ["#ffb627", "#e63946", "#3d348b", "#2ec4b6", "#f4a3c1", "#f2efe6"];
+    return {
+      init(w, h) { sc = clamp(h / 700, .35, 1.3); streaks = []; const n = Math.round(clamp(w * h / 9000, 30, 160)); for (let i = 0; i < n; i++) streaks.push({ x: rnd(0, w), y: rnd(0, h), l: rnd(20, 70) * sc + 8, v: rnd(60, 130), a: rnd(.05, .18) }); boats = COLS.map((c, i) => ({ c, ph: i * TAU / 6 + rnd(-.2, .2), sp: .085 + i * .006, x: 0, y: 0, hd: 0, tr: [] })); ripples = []; },
+      draw(c, w, h, t, m, dt) {
+        let g = c.createLinearGradient(0, 0, w, h); g.addColorStop(0, "#0e3a44"); g.addColorStop(1, "#071c24"); c.fillStyle = g; c.fillRect(0, 0, w, h);
+        if (m) wTarget = Math.atan2(m.y - h / 2, m.x - w / 2) + Math.PI;
+        let dw = wTarget - wind; while (dw > Math.PI) dw -= TAU; while (dw < -Math.PI) dw += TAU; wind += dw * Math.min(1, dt * 1.5);
+        const wx = Math.cos(wind), wy = Math.sin(wind), px = -wy, py = wx;
+        c.lineWidth = 1.5 * sc + .5;
+        for (let k = -14; k < 14; k++) {
+          const off = ((k * 70 * sc + t * 26 * sc) % (28 * 70 * sc)) - 14 * 70 * sc;
+          c.strokeStyle = `rgba(200,240,235,${.05 + .03 * Math.sin(k + t)})`; c.beginPath();
+          for (let q = -1; q <= 1.01; q += .05) { const L = Math.max(w, h) * 1.2, bx = w / 2 + wx * off + px * q * L, by = h / 2 + wy * off + py * q * L, wv = Math.sin(q * 9 + t * 1.3 + k) * 8 * sc; const X = bx + wx * wv, Y = by + wy * wv; q === -1 ? c.moveTo(X, Y) : c.lineTo(X, Y); }
+          c.stroke();
+        }
+        c.strokeStyle = "rgba(242,239,230,.5)"; c.lineCap = "round";
+        for (const s of streaks) { s.x += wx * s.v * dt * (sc + .3); s.y += wy * s.v * dt * (sc + .3); if (s.x < -80 || s.x > w + 80 || s.y < -80 || s.y > h + 80) { s.x = rnd(0, w); s.y = rnd(0, h); } c.globalAlpha = s.a; c.lineWidth = 1.2; c.beginPath(); c.moveTo(s.x, s.y); c.lineTo(s.x - wx * s.l, s.y - wy * s.l); c.stroke(); }
+        c.globalAlpha = 1; c.lineCap = "butt";
+        const cx = w / 2, cy = h * .5, rx = w * .36, ry = h * .32;
+        const marks = [0, Math.PI / 2, Math.PI, Math.PI * 1.5].map(a => [cx + Math.cos(a) * rx * 1.08, cy + Math.sin(a) * ry * 1.12]);
+        marks.forEach(([x, y], i) => { c.fillStyle = i === 2 ? "#e63946" : "#ffb627"; c.beginPath(); c.arc(x, y, 5 * sc + 2, 0, TAU); c.fill(); c.strokeStyle = "rgba(255,255,255,.35)"; c.lineWidth = 1; c.beginPath(); c.arc(x, y, (9 + 3 * Math.sin(t * 3 + i)) * sc + 3, 0, TAU); c.stroke(); });
+        for (const b of boats) {
+          b.ph += b.sp * dt * (1 + .35 * Math.sin(t * .3 + b.c.length));
+          const nx = cx + Math.cos(b.ph) * rx * (1 + .05 * Math.sin(b.ph * 3)), ny = cy + Math.sin(b.ph) * ry;
+          b.hd = Math.atan2(ny - b.y, nx - b.x) || b.hd; b.x = nx; b.y = ny;
+          b.tr.push([b.x, b.y]); if (b.tr.length > 40) b.tr.shift();
+        }
+        for (const b of boats) { const L = 90 * sc + 30, A = .22; c.fillStyle = "rgba(2,14,18,.22)"; c.beginPath(); c.moveTo(b.x, b.y); c.lineTo(b.x + Math.cos(wind + A) * L, b.y + Math.sin(wind + A) * L); c.lineTo(b.x + Math.cos(wind - A) * L, b.y + Math.sin(wind - A) * L); c.closePath(); c.fill(); }
+        for (const b of boats) { c.strokeStyle = "rgba(230,250,245,.28)"; c.lineWidth = 2 * sc + .5; c.beginPath(); b.tr.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.stroke(); }
+        for (const b of boats) {
+          const s = 16 * sc + 6;
+          let rel = wind - b.hd; while (rel > Math.PI) rel -= TAU; while (rel < -Math.PI) rel += TAU;
+          const inIrons = Math.abs(Math.abs(rel) - Math.PI) < .55;
+          c.save(); c.translate(b.x, b.y); c.rotate(b.hd);
+          c.fillStyle = b.c; c.beginPath(); c.moveTo(s * 1.1, 0); c.quadraticCurveTo(s * .2, s * .42, -s * .8, s * .28); c.lineTo(-s * .8, -s * .28); c.quadraticCurveTo(s * .2, -s * .42, s * 1.1, 0); c.fill();
+          c.fillStyle = "rgba(0,0,0,.25)"; for (let k = 0; k < 3; k++) { c.beginPath(); c.arc(-s * .45 + k * s * .35, 0, s * .07, 0, TAU); c.fill(); }
+          const boom = clamp(-rel * .5, -1.3, 1.3) + (inIrons ? Math.sin(t * 22) * .25 : 0), bl = s * 1.05, belly = inIrons ? 0 : s * .32 * Math.sign(-rel || 1);
+          c.rotate(Math.PI + boom); c.strokeStyle = "#f2efe6"; c.lineWidth = 2.2 * sc + 1; c.fillStyle = "rgba(242,239,230,.85)";
+          c.beginPath(); c.moveTo(0, 0); c.quadraticCurveTo(bl * .5, belly, bl, 0); c.closePath(); c.fill(); c.stroke();
+          c.restore();
+        }
+        beatT += dt; if (beatT > .9) { beatT -= .9; beatPulse = 1; }
+        beatPulse = Math.max(0, beatPulse - dt * 3);
+        for (const r of ripples) { r.r += dt * 120 * sc; r.l -= dt * .8; c.strokeStyle = `rgba(255,182,39,${clamp(r.l, 0, 1)})`; c.lineWidth = 2; c.beginPath(); c.arc(r.x, r.y, r.r, 0, TAU); c.stroke(); }
+        ripples = ripples.filter(r => r.l > 0);
+        const ax = w - 60 * sc - 30, ay = 70 * sc + 30, ar = 26 * sc + 10;
+        c.strokeStyle = "rgba(242,239,230,.35)"; c.lineWidth = 1; c.beginPath(); c.arc(ax, ay, ar, 0, TAU); c.stroke();
+        c.strokeStyle = "#ffb627"; c.lineWidth = 2.5; c.beginPath(); c.moveTo(ax - wx * ar * .8, ay - wy * ar * .8); c.lineTo(ax + wx * ar * .8, ay + wy * ar * .8); c.stroke();
+        c.fillStyle = "#ffb627"; c.beginPath(); c.arc(ax + wx * ar * .8, ay + wy * ar * .8, 3.5, 0, TAU); c.fill();
+        c.font = mono(Math.max(8, 11 * sc), 600); c.textAlign = "left"; c.textBaseline = "bottom"; c.fillStyle = "rgba(242,239,230,.75)";
+        c.fillText("KAATRU · WIND " + Math.round((wind * 180 / Math.PI + 360) % 360) + "° · DIRTY AIR SHOWN", 16, h - 14 - Math.max(12, 16 * sc));
+        c.fillStyle = `rgba(255,182,39,${.4 + .6 * beatPulse})`; c.fillText("AILASA ♪ " + "●".repeat(1 + Math.floor(t / .9) % 4), 16, h - 14);
+      },
+      click(x, y) { ripples.push({ x, y, r: 4, l: 1 }, { x, y, r: 0, l: .8 }); wTarget += rnd(-.9, .9); return "drum"; }
+    };
+  };
+
   /* ---------------- Stage manager ---------------- */
   const stages = new Set();
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -661,6 +721,7 @@
         sense() { T.tone(1046, 1.4, "sine", .16); T.tone(1046, 1.2, "sine", .06, .35); T.tone(1046, 1, "sine", .025, .7); },
         gecko() { T.noise(1.2, .06, "highpass", 3000, .4); [659, 784, 988].forEach((f, i) => T.tone(f, .6, "triangle", .08, i * .16)); },
         grove() { [523, 659, 784, 1046].forEach((f, i) => T.tone(f * .995, 1.2, "sine", .07, i * .22)); T.tone(65, .3, "sine", .25, 0, 45); },
+        sea() { [0, .45, .9].forEach((w, i) => { T.tone(70, .35, "sine", .32, w, 40); T.noise(.12, .14, "lowpass", 900, 1, w); }); T.tone(587, .8, "triangle", .06, 1.2); T.tone(784, .9, "triangle", .05, 1.45); },
         heap() { [0, .08, .16, .24].forEach((w, i) => T.tone([880, 1320, 660, 1760][i], .06, "square", .05, w)); T.noise(.5, .1, "bandpass", 600, 3, .35, 3000); T.tone(55, .8, "sawtooth", .06, .35, 40); }
       }[th] || (() => { }))();
     },
@@ -677,13 +738,14 @@
         tick() { T.noise(.03, .25, "highpass", 3000); },
         purr() { T.tone(48, .7, "sawtooth", .05, 0, 52, .1); T.tone(988, .3, "triangle", .06, .05); T.tone(1318, .4, "triangle", .05, .18); },
         chime() { [784, 988, 1175].forEach((f, i) => T.tone(f, .9, "sine", .07, i * .09)); },
+        drum() { T.tone(80, .3, "sine", .35, 0, 42); T.noise(.1, .18, "lowpass", 1200); },
         malloc() { for (let i = 0; i < 6; i++) T.tone(400 + i * 220, .05, "square", .04, i * .03); }
       }[kind] || (() => { }))();
     },
     stopAmb() { this.amb.forEach(n => { try { n.g.gain.setTargetAtTime(0, this.ctx.currentTime, .3); n.src.forEach(s => s.stop(this.ctx.currentTime + 1.5)); } catch (e) { } }); this.amb = []; this.timers.forEach(clearInterval); this.timers = []; },
     ambient(th) {
       this.stopAmb(); if (!this.ok()) return; const c = this.ctx, T = this;
-      const P = { hub: [[110, 164.8], "sine", 700], feed: [[220, 277], "triangle", 900], water: [[98, 147], "sine", 500], xray: [[60, 120], "sawtooth", 260], defuse: [[55], "square", 160], time: [[130.8, 196], "triangle", 800], body: [[50], "sawtooth", 140], block: [[196], "triangle", 600], wire: [[82, 82.6], "sawtooth", 380], house: [[41, 43.6], "sine", 220], sense: [[70, 105], "sine", 400], gecko: [[110, 164.8], "sine", 500], grove: [[130.8, 196, 261.6], "triangle", 700], heap: [[55, 55.4], "sawtooth", 300] }[th];
+      const P = { hub: [[110, 164.8], "sine", 700], feed: [[220, 277], "triangle", 900], water: [[98, 147], "sine", 500], xray: [[60, 120], "sawtooth", 260], defuse: [[55], "square", 160], time: [[130.8, 196], "triangle", 800], body: [[50], "sawtooth", 140], block: [[196], "triangle", 600], wire: [[82, 82.6], "sawtooth", 380], house: [[41, 43.6], "sine", 220], sense: [[70, 105], "sine", 400], gecko: [[110, 164.8], "sine", 500], grove: [[130.8, 196, 261.6], "triangle", 700], heap: [[55, 55.4], "sawtooth", 300], sea: [[73.4, 110], "sine", 260] }[th];
       if (!P) return;
       const g = c.createGain(); g.gain.value = 0; g.gain.setTargetAtTime(.05, c.currentTime, 1.2); const lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = P[2]; lp.connect(g); g.connect(this.out);
       const srcs = P[0].map(f => { const o = c.createOscillator(); o.type = P[1]; o.frequency.value = f; const lfo = c.createOscillator(), lg = c.createGain(); lfo.frequency.value = .1 + Math.random() * .2; lg.gain.value = f * .01; lfo.connect(lg); lg.connect(o.frequency); o.connect(lp); o.start(); lfo.start(); return [o, lfo]; }).flat();
@@ -699,6 +761,7 @@
       if (th === "body") every(3800, () => T.noise(.12, .05, "highpass", 2000));
       if (th === "gecko") { every(160, () => T.noise(.2, .012, "highpass", rnd(2500, 6000), .5)); every(3100, () => Math.random() < .5 && T.tone([659, 784, 988][(Math.random() * 3) | 0], .7, "triangle", .025)); }
       if (th === "grove") { const sc3 = [523, 587, 659, 784, 880, 1046]; let i = 0; every(420, () => { T.tone(sc3[(i * 5 + (i >> 2)) % 6], .5, "sine", .022); i++; }); }
+      if (th === "sea") { every(900, () => { T.tone(78, .22, "sine", .09, 0, 46); T.noise(.06, .05, "lowpass", 1000); }); every(2600, () => T.noise(1.6, .03, "lowpass", 500, .6)); }
       if (th === "heap") every(700, () => Math.random() < .6 && T.tone(rnd(800, 2400), .03, "square", .015));
     }
   };

@@ -11,7 +11,7 @@
   const CAT = { Educational: "Learning", Awareness: "Learning", AR: "AR", VR: "VR", IoT: "IoT", Studio: "Studio" };
   const WORD = ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen"];
   const ROOMN = C.filter(c => c.cat !== "Studio").length, STUDION = C.length - ROOMN;
-  const PLAT = { "fake-feed": "Any web browser", "water-debt": "TV + players' phones", "x-ray-mirror": "Laptop + webcam + TV", "defuse-the-table": "2–3 ARCore phones", "time-window": "1 ARCore phone", "out-of-body": "VR box + 3 tripod phones", "block-party": "Laptop + webcam + TV", "live-wire": "ESP32 + laptop", "house-is-listening": "Smart home + visitor's phone", "sixth-sense": "Galaxy Watch 4 + TV", "my-gecko": "Android phone (offline)", "magzzele": "2 PCs · Steam P2P", "heap": "PC client + .NET servers" };
+  const PLAT = { "fake-feed": "Any web browser", "water-debt": "TV + players' phones", "x-ray-mirror": "Laptop + webcam + TV", "defuse-the-table": "2–3 ARCore phones", "time-window": "1 ARCore phone", "out-of-body": "VR box + 3 tripod phones", "block-party": "Laptop + webcam + TV", "live-wire": "ESP32 + laptop", "house-is-listening": "Smart home + visitor's phone", "sixth-sense": "Galaxy Watch 4 + TV", "my-gecko": "Android phone (offline)", "magzzele": "2 PCs · Steam P2P", "heap": "PC client + .NET servers", "kaatru": "PC or Steam Deck · gamepad" };
 
   /* ---------- theme + background ---------- */
   function setTheme(accent, accent2) { root.style.setProperty("--accent", accent); root.style.setProperty("--accent2", accent2); }

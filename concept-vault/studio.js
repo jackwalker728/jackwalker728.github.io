@@ -1,4 +1,4 @@
-/* Concept Vault: studio projects (11 My Gecko, 12 Magzzele, 13 HEAP).
+/* Concept Vault: studio projects (11 My Gecko, 12 Magzzele, 13 HEAP, 14 KAATRU).
    Same GDD shape as data.js, plus EXTRA (description + player POV) and MATRIX scores. */
 (function () {
   const S = [
@@ -225,6 +225,84 @@
     ["Infinite Space: An Argument for Single-Sharded Architecture in MMOs", "CCP Games · Game Developer", "Why one shared world beats many copies, and how EVE splits it across server nodes.", "https://gamedeveloper.com/design/infinite-space-an-argument-for-single-sharded-architecture-in-mmos"],
     ["Exploring the Tech and Design of Noita", "Petri Purho · GDC 2019", "How a world where every pixel is simulated is built and kept fast.", "https://gdcvault.com/play/1025695/Exploring-the-Tech-and-Design"]
   ]
+},
+{
+  id: "kaatru", num: "14", title: "KAATRU", cat: "Studio", theme: "sea",
+  accent: "#ffb627", accent2: "#2ec4b6",
+  players: "2–6 players (online)", space: "PC or Steam Deck, online", session: "6–9 min race · ~25 min session",
+  tagline: "Read the wind. Rally your crew. Make your rivals' day worse.",
+  logline: "Captains of the Coast: a 2–6 player online sailing race at a festival on the Tamil Nadu coast. You are the Mandaadi at the tiller of a six-person traditional crew, and you win by reading wind and sea better than your rivals, timing your crew to the Ailasa chant and sabotaging rivals at close range.",
+  mind: "You sit upwind of the leader and steal their wind. Their sail goes slack, yours fills, and you pass them without a single speed boost.",
+  genre: "Online sailing race · physics racer · party combat-lite",
+  platform: "PC (Steam) first, verified on Steam Deck at 60 fps; Unity 6 LTS",
+  audience: {
+    primary: "Online racing and party-game players aged 16–35 who want races decided by skill, not lucky items",
+    secondary: "Players who know the South Indian coast and its festivals, and sailing fans who want real tactics to work",
+    personas: [
+      ["Karthik, 22", "Plays kart racers with friends every weekend and is tired of losing to random items."],
+      ["Divya, 27", "Grew up near the Tamil Nadu coast and wants to see its boat festivals in a game."],
+      ["The sailor", "Knows what tacking is and wants a game where real sailing tactics pay off."]
+    ]
+  },
+  fiction: "It is festival day on the South Tamil Nadu coast. Painted hulls line the beach, parai drums pound and village flags flutter along the shore. Crews race from the sand past the harbour, a reef gate, a lighthouse and a temple buoy, then back to the shore line. You are the Mandaadi, the captain who reads the sea, and your crew trusts your every call. All characters, boats and villages are original.",
+  uspHead: "Real sailing physics, with a crew to command.",
+  usp: [
+    "Thrust comes only from lift and drag on the sail, so tacking, the no-go zone and the beam-reach sweet spot all come out of one model instead of scripted rules.",
+    "The crew is your engine: five AI crew share one stamina pool, and timing strokes to the Ailasa chant turns paddling into a rhythm skill.",
+    "Catch-up without rubber-banding: trailing boats steal the leader's wind and get first pick of the sabotage pickups placed off the racing line."
+  ],
+  loop: ["Read wind and waves", "Set heading and sail trim", "Spend the crew: paddle, ropes, bail, brace", "Round the mark", "Sabotage or dodge a rival"],
+  curve: { labels: ["Beach launch", "Harbour", "Upwind beat", "Wave rides", "Squall", "Photo finish"], v: [.6, .45, .7, .85, .95, 1] },
+  systems: [
+    ["Wind and sail physics", "Apparent wind, angle of attack and designer lift and drag curves at 60 Hz; tacking through the wind needs momentum or you stall in irons."],
+    ["Deterministic ocean", "4–6 Gerstner swell waves from a shared seed and the network clock, so every machine sees the same sea for zero bandwidth. Waves are ramps to ride and capsize hazards."],
+    ["Crew brain", "A utility AI assigns five crew to paddle, ropes, bail or brace every 0.25 s, with safety overrides near capsize or swamping."],
+    ["Rival sabotage", "Ram, fishing net and oar throw. Every tool costs the attacker something and has a counter, and anti-grief rules stop camping."],
+    ["Weather Director", "A seeded server director spawns whirlpools, squalls, debris, tides, rogue waves and mist, always telegraphed at least 8 s ahead."],
+    ["Signature systems", "Sea Sense shows gusts 4–8 s ahead; plus dirty air, the Ailasa rhythm, the Vegam streak, an anchor pivot and capsize recovery instead of respawns."]
+  ],
+  interact: [
+    ["Left stick or A/D", "Steer the tiller", "The rudder slews to its target; a slow boat barely turns"],
+    ["Right stick or W/S", "Sheet in or ease the sail", "Telltale ribbons on the sail show trim quality"],
+    ["Tap paddle on the Ailasa beat", "On-beat stroke", "Thrust ×1.25, the chant swells, a sharp haptic pulse"],
+    ["Hold brace", "Crew hike out to windward", "The heel arc on the HUD drops back from amber"],
+    ["Toggle Sea Sense", "Read the sea", "Gust streaks, currents and laylines appear 4–8 s ahead"],
+    ["Throw oar, drop net or ram", "Sabotage a rival", "Their crew is stunned or rudder tangled, and your flag shows on their HUD"]
+  ],
+  palette: ["#0b2630", "#2ec4b6", "#e63946", "#ffb627", "#3d348b"],
+  keywords: ["Festival coast", "Stylised realism", "Painted hulls", "Parai and chant"],
+  visual: "Sun-bleached South Tamil Nadu coast at festival time, stylised-realistic with hand-painted textures and PBR water. Hulls and sails in festival reds, turmeric yellow and indigo pop against a teal-to-slate sea, with palmyra palms, fishing hamlets and a temple gopuram as a course mark.",
+  audio: "Adaptive parai and thavil drum layers with a nadaswaram lead that build with race intensity. The Ailasa chant is both music and the paddling beat, crew shout barks in Tamil, and ropes creak with sheet load.",
+  tech: {
+    Engine: ["Unity 6 LTS", "URP"],
+    Libraries: ["Netcode for GameObjects 2.x", "Unity Multiplayer Services (Sessions + Relay)", "Input System", "Burst + Jobs", "UI Toolkit"],
+    Hardware: ["PC or Steam Deck", "Gamepad or keyboard and mouse"]
+  },
+  arch: ["Player input (8 bytes per tick)", "Owner predicts at 60 Hz", "Server simulates with authority", "20 Hz snapshots (~23 bytes per boat)", "Waves, wind and hazards recomputed from seeds"],
+  proto: ["Sailing toy: flat water, wind capture, rudder and trim arc", "One buoy to tack upwind to", "Gerstner swell with wave riding and capsize", "Telltale trim HUD"],
+  full: ["2–6 player online races with prediction and reconciliation", "4 boat classes: Kattumaram, Vallam, Thoni and Fiber boat", "Weather Director, sabotage and Festival Night", "3 coastal courses, cosmetics and five-language UI"],
+  weeks: [["Sailing toy", 3], ["Ocean", 3], ["Network core", 4], ["Crew", 2], ["Sabotage", 2], ["Environment", 3], ["Vertical slice", 3]],
+  risks: [
+    "Sailing can confuse non-sailors: a trim arc with a green band, telltales, an Assisted Trim option and an 8-minute tutorial",
+    "Netcode for GameObjects has no built-in rollback prediction: a custom predict-and-reconcile loop over a pure simulation layer, tested at 150 ms and 2% packet loss",
+    "Cultural misrepresentation: coastal community consultants, native voice talent and a review gate at the vertical slice"
+  ],
+  money: [
+    ["Premium on Steam", "One purchase with every boat and course; nothing you buy changes boat stats."],
+    ["Festival cosmetics", "Hull paint, kolam sail patterns, village flags, chant packs and wake trails."],
+    ["Festival events", "Seasonal courses timed to coastal festivals, with a free cosmetic track."]
+  ],
+  games: [
+    ["Sea of Thieves", "Rare, 2018", "Crewed sailing where sail angle and wind decide your speed, and dropping anchor doubles as a turning trick.", "https://en.wikipedia.org/wiki/Sea_of_Thieves"],
+    ["Virtual Regatta Inshore", "Virtual Regatta, 2015", "Short 5–10 minute online sailing races, the official eSailing platform for World Sailing.", "https://en.wikipedia.org/wiki/Virtual_Regatta"],
+    ["Mario Kart 8", "Nintendo, 2014", "The item-based catch-up that KAATRU avoids: here trailing boats catch up through dirty air and route choice.", "https://en.wikipedia.org/wiki/Mario_Kart_8"]
+  ],
+  papers: [
+    ["Effective Water Simulation from Physical Models", "Mark Finch · GPU Gems, NVIDIA, 2004", "The Gerstner wave sum that the gameplay swell is built on.", "https://developer.nvidia.com/gpugems/gpugems/part-i-natural-effects/chapter-1-effective-water-simulation-physical-models"],
+    ["Introduction to Networked Physics", "Glenn Fiedler · Gaffer On Games", "Lockstep, snapshot interpolation and state synchronization compared, the basis of KAATRU's netcode.", "https://gafferongames.com/post/introduction_to_networked_physics/"],
+    ["Client anticipation", "Unity Netcode for GameObjects documentation", "NGO offers anticipation but not full rollback prediction, which is why KAATRU adds its own reconcile loop.", "https://docs.unity3d.com/Packages/com.unity.netcode.gameobjects%402.5/manual/advanced-topics/client-anticipation.html"],
+    ["Kattumaram", "Wikipedia", "The Tamil 'tied wood' craft behind the English word catamaran, and one of the four boat classes.", "https://en.wikipedia.org/wiki/Kattumaram"]
+  ]
 }
   ];
 
@@ -263,6 +341,23 @@
       ],
       demo: 4
     },
+    "kaatru": {
+      desc: [
+        "KAATRU, Tamil for 'wind', is a 2–6 player online sailing race inspired by the festival boat races of the Tamil Nadu coast, like the one in the Tamil film Mandaadi. You are the Mandaadi, the leader of a six-person traditional crew, racing village rivals from the beach through a 6–9 minute course of buoys, a reef gate, a lighthouse and a temple mark. It is built in Unity 6 for PC and Steam Deck, with all characters, boats and story original.",
+        "The race is won by reading the sea. Sails produce thrust only from lift and drag in the apparent wind, so you cannot sail straight into the wind; you tack, and if you tack without enough speed you stall. Waves come from a deterministic Gerstner sea that every player shares, so you can ride their faces for speed or capsize if you take them side-on. Sea Sense lets you see gusts and currents a few seconds ahead, and dirty air lets a trailing boat steal the leader's wind.",
+        "Your crew is your engine. Five AI crew share one stamina pool and you set their focus: paddle, ropes, bail or brace. Tapping paddle on the beat of the Ailasa chant makes every stroke stronger and cheaper. Rivalry is close and personal, with rams, fishing nets and thrown oars, but every attack costs the attacker something and has a counter. The full 19-section design document is written, including C# for the sail aerodynamics, crew brain and netcode, and the build starts with the M0 sailing toy."
+      ],
+      pov: [
+        ["0:00", "Beach launch", "Six boats sit on the sand in red, turmeric and indigo. The crew chants 'Ailasa!' and you tap paddle on every beat. A perfect rhythm pushes your Vallam into the surf a second and a half before anyone else."],
+        ["1:00", "Harbour leg", "Inside the harbour the wind is light, so it's all paddling. You keep tapping on the chant; each on-beat stroke costs less stamina, and the drums swell as your streak builds."],
+        ["2:00", "The upwind beat", "The next mark is dead upwind. Point straight at it and the sail just flaps. You toggle Sea Sense: gust streaks and laylines appear on the water, and you plan two tacks to reach the reef gate."],
+        ["3:30", "Stealing wind", "The leader is just ahead and downwind of you. You steer so your sail's shadow falls across theirs. Their sail goes slack, yours fills, and you slide past without a single boost."],
+        ["4:30", "Rogue waves", "A crew member shouts 'Periya alai!' and three huge waves roll in from the horizon. You turn bow-first, catch the face of the first one and surf it as the drums hit and your Vegam streak climbs."],
+        ["5:30", "Squall and sabotage", "A dark squall crosses the course and the wind swings hard. A rival pulls alongside. You throw your oar and stun one of their crew, and seconds later they toss a fishing net into your path."],
+        ["7:00", "Photo finish", "The last leg is a dead run to the shore with two boats level. You call All Hands, every crew member paddles on the beat, stamina drains to nearly zero, and you cross the line a bow-length ahead as the beach crowd erupts."]
+      ],
+      demo: 3
+    },
     "heap": {
       desc: [
         "HEAP (subtitle: a dealloc() World) is a massive, persistent, seasonal multiplayer 3D voxel world set inside a living computer. Every player is a program made of pixels, and those pixels are everything at once: your health, your size, your inventory and your money. Mine the world and your body grows; build and you spend yourself; get hit and you shrink.",
@@ -284,5 +379,5 @@
 
   window.CONCEPTS.push(...S);
   window.EXTRA = Object.assign(window.EXTRA || {}, X);
-  Object.assign(window.MATRIX, { "my-gecko": [3, 5, 3, 5], "magzzele": [4, 3, 4, 4], "heap": [5, 2, 4, 3] });
+  Object.assign(window.MATRIX, { "my-gecko": [3, 5, 3, 5], "magzzele": [4, 3, 4, 4], "heap": [5, 2, 4, 3], "kaatru": [4, 3, 5, 3] });
 })();
